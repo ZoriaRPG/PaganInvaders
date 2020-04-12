@@ -1,5 +1,5 @@
 // Invaders
-// v0.3.2
+// v0.3.3
 // 12th April, 2020
 // ZoriaRPG
 //
@@ -40,6 +40,8 @@
 * 0.3.0 - Begin adding the ability for player weapons to damage bunkers.
 * 0.3.1 - Corrected formulae for player shots damaging bunkers. 
 * 0.3.2 - Corrected formulae for invader shots damaging bunkers.
+* 0.3.3 - Slight adjustments to player and enemy shots and bunker destruction.
+* 	- Tuned them, and added constants. I'm satisfied with them, now. 
 */
 
 /*TODO
@@ -110,21 +112,25 @@ namespace invaders
 		{
 			const int minX = 16;
 			const int maxX = 16+(16*2)-1;
+			const int minY = 118;
 		}
 		namespace two
 		{
 			const int minX = 79;
 			const int maxX = 79+(16*2)-1;
+			const int minY = 118;
 		}
 		namespace three
 		{
 			const int minX = 143;
 			const int maxX = 143+(16*2)-1;
+			const int minY = 118;
 		}
 		namespace four
 		{
 			const int minX = 205;
 			const int maxX = 205+(16*2)-1;
+			const int minY = 118;
 		}
 		
 		int getpositionX(int id)
@@ -483,6 +489,7 @@ namespace invaders
 						//if there is a collision, move until reaching that Y pos, then kill the missile.
 						/*if ( this->Y > 110 )*/
 						const int DESTROY_Y_OFFSET = -2;
+						const int ENEMY_ERODE_RADIUS = 4;
 						unless(SKIPBUNKERS)
 						{
 							//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+16+2) * 10000;
@@ -491,7 +498,7 @@ namespace invaders
 							bitmap scrn = Game->LoadBitmapID(RT_SCREEN);
 							//printf("scrn pointer is: %f\n", <int>scrn);
 							//int col2 = scrn->GetPixel(this->X+4, this->Y+16+2) * 10000;
-							int col2 = scrn->GetPixel(this->X+8, this->Y+16) * 10000; //penetrates one pixel
+							int col2 = scrn->GetPixel(this->X+8, this->Y+17) * 10000; //penetrates one pixel
 							//printf("scrn col2 is: %f\n", col2);
 							//printf("pixel colour: %f\n", col);
 							if ( col2 >= (177) && col2 < (192) ) //cset 11
@@ -509,9 +516,9 @@ namespace invaders
 											//must be shield 1
 											
 											int hitpos = (this->X+8) - shields::one::minX;
-											int impact = Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
+											int impact = (this->Y+17) - shields::one::minY; //Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
 											
-											invaders::shields::bnkr[0]->Circle(1, hitpos, impact, 8, 0, 1, 0,0,0, true, 128);
+											invaders::shields::bnkr[0]->Circle(1, hitpos, impact, ENEMY_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 											this->DeadState = WDS_DEAD;
 											
 											Quit();
@@ -523,9 +530,9 @@ namespace invaders
 										{
 											//must be shield 2
 											int hitpos = (this->X+8) - shields::two::minX;
-											int impact = Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
+											int impact = (this->Y+17) - shields::two::minY; //the depth of the impact
 											
-											invaders::shields::bnkr[1]->Circle(1, hitpos, impact, 8, 0, 1, 0,0,0, true, 128);
+											invaders::shields::bnkr[1]->Circle(1, hitpos, impact, ENEMY_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 											this->DeadState = WDS_DEAD;
 											
 											Quit();
@@ -538,9 +545,9 @@ namespace invaders
 									{
 										//must be shield 3
 										int hitpos = (this->X+8) - shields::three::minX;
-										int impact = Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
+										int impact = (this->Y+17) - shields::three::minY; //the depth of the impact
 										
-										invaders::shields::bnkr[2]->Circle(1, hitpos, impact, 8, 0, 1, 0,0,0, true, 128);
+										invaders::shields::bnkr[2]->Circle(1, hitpos, impact, ENEMY_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 										this->DeadState = WDS_DEAD;
 											
 										Quit();
@@ -553,9 +560,9 @@ namespace invaders
 								{
 									//must be shield 4
 									int hitpos = (this->X+8) - shields::four::minX;
-									int impact = Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
+									int impact = (this->Y+17) - shields::four::minY; //the depth of the impact
 									
-									invaders::shields::bnkr[3]->Circle(1, hitpos, impact, 8, 0, 1, 0,0,0, true, 128);
+									invaders::shields::bnkr[3]->Circle(1, hitpos, impact, ENEMY_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 									this->DeadState = WDS_DEAD;
 											
 									Quit();
@@ -1062,6 +1069,8 @@ namespace invaders
 			const int HITXOFS = 6;
 			const int HITYOFS = 2;
 			
+			const int SHOT_ERODE_RADIUS = 6;
+			
 			lweapon script player_missile
 			{
 				void run()
@@ -1084,7 +1093,7 @@ namespace invaders
 								//printf("ew col is: %d\n", col);
 								bitmap scrn = Game->LoadBitmapID(RT_SCREEN);
 								//printf("scrn pointer is: %f\n", <int>scrn);
-								int col2 = scrn->GetPixel(this->X+8, this->Y+1) * 10000; //penetrates one pixel
+								int col2 = scrn->GetPixel(this->X+8, this->Y+2) * 10000; //penetrates one pixel
 								//printf("scrn col2 is: %f\n", col2);
 								//printf("pixel colour: %f\n", col);
 								const int COL_FIRST = (16*11)+1;
@@ -1093,13 +1102,13 @@ namespace invaders
 								{
 									bool skip;
 									printf("LWeapon Bunker collision on colour: %d\n", col2);
-									if ( this->X+4 < shields::four::minX )
+									if ( this->X+8 <= shields::four::minX )
 									{
 										//must be shield 1, 2, or 3
-										if ( this->X+4 < shields::three::minX )
+										if ( this->X+8 <= shields::three::minX )
 										{
 											//must be shield 1, 2
-											if ( this->X+4 < shields::two::minX )
+											if ( this->X+8 <= shields::two::minX )
 											{
 												//must be shield 1
 												//int xpos = this->X+8;
@@ -1126,11 +1135,14 @@ namespace invaders
 												//int edge = shields::one::minX-xpos;
 												int hitpos = (this->X+8) - shields::one::minX;
 												if ( DEBUG ) printf("LW1 bunker HITPOS: %d\n",hitpos);
-												int impact = Abs(118-(this->Y))+8; //the depth of the impact
+												
+												int impact = (this->Y) - shields::one::minY + 2; //Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
+											
+												//int impact = Abs(118-(this->Y))+8; //the depth of the impact
 												if ( DEBUG ) printf("LW SHIELD 1: impact at y: %d\n", impact);
 													//edge is the left edge of the bitmap for ffc[1]
 												
-												invaders::shields::bnkr[0]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+												invaders::shields::bnkr[0]->Circle(1, hitpos, impact, SHOT_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 												this->DeadState = WDS_DEAD;
 												Quit();
 													
@@ -1143,7 +1155,7 @@ namespace invaders
 												int hitpos = (this->X+8) - shields::two::minX;
 												int impact = Abs(118-(this->Y))+8; //the depth of the impact
 												
-												invaders::shields::bnkr[1]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+												invaders::shields::bnkr[1]->Circle(1, hitpos, impact, SHOT_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 												this->DeadState = WDS_DEAD;
 										
 												Quit();
@@ -1157,7 +1169,7 @@ namespace invaders
 											int hitpos = (this->X+8) - shields::three::minX;
 											int impact = Abs(118-(this->Y))+8; //the depth of the impact
 											
-											invaders::shields::bnkr[2]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+											invaders::shields::bnkr[2]->Circle(1, hitpos, impact, SHOT_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 											this->DeadState = WDS_DEAD;
 									
 											Quit();
@@ -1170,7 +1182,7 @@ namespace invaders
 										int hitpos = (this->X+8) - shields::four::minX;
 										int impact = Abs(118-(this->Y))+8; //the depth of the impact
 										
-										invaders::shields::bnkr[3]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+										invaders::shields::bnkr[3]->Circle(1, hitpos, impact, SHOT_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 										this->DeadState = WDS_DEAD;
 								
 										Quit();
