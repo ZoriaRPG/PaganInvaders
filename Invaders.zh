@@ -1,7 +1,7 @@
 #include "std.zh"
 
 // Invaders
-// v0.5.1
+// v0.5.2
 // 12th April, 2020
 // ZoriaRPG
 //
@@ -50,6 +50,7 @@
 * 	- You now get a YOU WIN screen and sound if you reach R256.
 * 0.5.0 - Added opening crawl and intro tune.
 * 0.5.1 - Cleanup of comments and logging.
+* 0.5.2 - Remove call to bitmap->Write and add Waitframe prior to blit call.
 */
 
 /*TODO
@@ -149,6 +150,7 @@ namespace invaders
 				// Probably doesn't need a script. Changers would work.
 				// Oh, but we need to draw it from a bitmap. Flidd. 
 				loc[id] = this;
+				Waitframe();
 				while(1)
 				{
 					draw(this, (this->InitD[1]));
@@ -1422,7 +1424,6 @@ namespace invaders
 			crawl::addHeader(" ");
 			crawl::addLine("You must RESCURE HUMANITY from their", FONT_SINQL);
 			crawl::addLine("IDOLATRY, and their misguided beliefs!", FONT_SINQL);
-			crawl::output("");
 			crawl::blackDelay(30);
 			crawl::rollCredits(.5);
 			crawl::blackDelay(30);
