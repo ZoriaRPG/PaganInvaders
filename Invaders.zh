@@ -1,5 +1,5 @@
 // Invaders
-// v0.1.7
+// v0.2.0
 // 2nd April, 2020
 // ZoriaRPG
 //
@@ -34,6 +34,8 @@
 * 0.1.7 - Fixed UFO collision and points. Adjusted the way that invader step is calculated. 
 * 	- Slowed UFO speed a bit. Added 20 frames of grace in invader descent phase. 
 * 	- Fixed a bug where X/Y on the swarm pointer were accessed during nextstage() prior to being respawned. 
+* 0.2.0 - Implemented bunkers, after fixing Getpixel in th ZC interpreter.
+*	- Now requires Alha 58.
 */
 
 /*TODO
@@ -44,6 +46,9 @@ Fix GetPixel in the source so that it returns the correct values for the screen.
 	Finish bunkers.
 	
 Fix UFO not dying.
+
+Points = Life Refills
+Every 2000 points gain +4 HP?
 
 */
 
@@ -56,7 +61,7 @@ namespace invaders
 	int hasturned = 0;
 	int gameover = 0;
 	const int SPLATSPRITE = 34; 
-	const bool SKIPBUNKERS = 1;
+	const bool SKIPBUNKERS = 0;
 	const bool DEBUG = 0;
 	namespace shields
 	{
@@ -119,7 +124,7 @@ namespace invaders
 			//bnkr[f->InitD[0]]->Blit(0, RT_SCREEN, 0, 0, 3*16, 2*16, f->X, f->Y, 3*16, 2*16, 0, 0, 0, 0, 0, true);
 			//!Revert to this to stop the spin. 
 			//bnkr[f->InitD[0]]->Blit(0, <bitmap>(-2), 0, 0, 3*16, 2*16, f->X, f->Y, 3*16, 2*16, 0-(ofs/30), 0, 0, 0, 0, true);
-			bnkr[f->InitD[0]]->Blit(0, <bitmap>(-2), 0, 0, 3*16, 2*16, f->X, f->Y, 3*16, 2*16, 0-(ofs/30), 0, 0, 0, 0, true);
+			bnkr[f->InitD[0]]->Blit(2, <bitmap>(-2), 0, 0, 3*16, 2*16, f->X, f->Y, 3*16, 2*16, 0-(ofs/30), 0, 0, 0, 0, true);
 			if ( spin ) --ofs;
 		}
 		ffc script bunker
@@ -168,6 +173,10 @@ namespace invaders
 					printf("Bunker[0] colour at x[%d], y[%d] is: %d\n", w, q, col);
 				}
 			}*/
+			Waitframes(100);
+			int c1 = Graphics->GetPixel(RT_SCREEN, 78,118)*10000;
+				printf("c1: %d\n", c1);
+			
 			while(1)
 			{
 				if ( gameover ) 
@@ -392,22 +401,32 @@ namespace invaders
 				//invaders::shields::bnkr[1]->Write(0, "bunker_w2.png", true);
 				//invaders::shields::bnkr[2]->Write(0, "bunker_w3.png", true);
 				//invaders::shields::bnkr[3]->Write(0, "bunker_w4.png", true);
+				Waitdraw();
+				int c1 = Graphics->GetPixel(RT_SCREEN, 78,118)*10000;
+				printf("c1: %d\n", c1);
+				
 				while(1)
 				{
 					//for every pixel of movement, check collisions.
 					for ( int q = 0; q < STEP; ++q )
 					{
 						++this->Y;
+						
 						//if there is a collision, move until reaching that Y pos, then kill the missile.
 						/*if ( this->Y > 110 )*/
 						unless(SKIPBUNKERS)
 						{
-							int col = playfield->GetPixel(this->X+4, this->Y+16+1);
-							if (DEBUG) printf("pixel colour: %f\n", col);
-							if ( col )
+							int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+16+2) * 10000;
+							//printf("ew col is: %d\n", col);
+							bitmap scrn = Game->LoadBitmapID(RT_SCREEN);
+							//printf("scrn pointer is: %f\n", <int>scrn);
+							int col2 = scrn->GetPixel(this->X+4, this->Y+16+2) * 10000;
+							//printf("scrn col2 is: %f\n", col2);
+							//printf("pixel colour: %f\n", col);
+							if ( col2 >= (177) && col2 < (192) ) //cset 11
 							{
 								bool skip;
-								if (DEBUG) printf("Bunker collision on colour: %d\n", col);
+								printf("Bunker collision on colour: %d\n", col);
 								if ( this->X+4 < shields::four::minX )
 								{
 									//must be shield 1, 2, or 3
@@ -420,28 +439,16 @@ namespace invaders
 											int xpos = this->X+4;
 											//we are inside the ffc by this much
 											int edge = Abs(xpos-shields::one::maxX);
+											printf("SHIELD 1: edge is: %d\n", edge);
 											int impact = Abs(118-(this->Y)); //the depth of the impact
-											if (DEBUG) printf("impact at y: %d\n", impact);
+											printf("SHIELD 1: impact at y: %d\n", impact);
 											//edge is the left edge of the bitmap for ffc[1]
 											
-											invaders::shields::bnkr[0]->Circle(0, edge, impact, 4, 0, 1, 0,0,0, true, 128);
-											for ( int q = 0; q < 48; ++q )
-											{
-												if ( theinvaders.swarm[q]->isValid() )
-												{ 
-													if ( Collision(this, theinvaders.swarm[q]) )
-													{
-														skip = true;
-														
-													}
-												}
-											}
-											unless (skip)
-											{
-												this->DeadState = WDS_DEAD;
-												Quit();
+											invaders::shields::bnkr[0]->Circle(1, edge+Rand(-3,3), impact+Rand(-3,3), 5+Rand(5), 0, 1, 0,0,0, true, 128);
+											this->DeadState = WDS_DEAD;
+											Quit();
 												
-											}
+											
 											
 										}
 										else
@@ -450,28 +457,16 @@ namespace invaders
 											int xpos = this->X+4;
 											//we are inside the ffc by this much
 											int edge = Abs(xpos-shields::two::maxX);
+											printf("SHIELD 2: edge is: %d\n", edge);
 											int impact = Abs(118-(this->Y)); //the depth of the impact
-											if (DEBUG) printf("impact at y: %d\n", impact);
+											printf("SHIELD 2: impact at y: %d\n", impact);
 											//edge is the left edge of the bitmap for ffc[2]
 											
-											invaders::shields::bnkr[1]->Circle(0, edge, impact, 4, 0, 1, 0,0,0, true, 128);
-											for ( int q = 0; q < 48; ++q )
-											{
-												if ( theinvaders.swarm[q]->isValid() )
-												{ 
-													if ( Collision(this, theinvaders.swarm[q]) )
-													{
-														skip = true;
-														
-													}
-												}
-											}
-											unless (skip)
-											{
-												this->DeadState = WDS_DEAD;
-												Quit();
+											invaders::shields::bnkr[1]->Circle(1, edge+Rand(-3,3), impact+Rand(-3,3), 5+Rand(5), 0, 1, 0,0,0, true, 128);
+											this->DeadState = WDS_DEAD;
+											Quit();
 												
-											}
+											
 										}
 										
 									}
@@ -481,28 +476,16 @@ namespace invaders
 										int xpos = this->X+4;
 										//we are inside the ffc by this much
 										int edge = Abs(xpos-shields::three::maxX);
+										printf("SHIELD 3: edge is: %d\n", edge);
 										int impact = Abs(118-(this->Y)); //the depth of the impact
-										if (DEBUG) printf("impact at y: %d\n", impact);
+										printf("SHIELD 3: impact at y: %d\n", impact);
 										//edge is the left edge of the bitmap for ffc[1]
 										
-										invaders::shields::bnkr[2]->Circle(0, edge, impact, 4, 0, 1, 0,0,0, true, 128);
-										for ( int q = 0; q < 48; ++q )
-										{
-											if ( theinvaders.swarm[q]->isValid() )
-											{ 
-												if ( Collision(this, theinvaders.swarm[q]) )
-												{
-													skip = true;
-													
-												}
-											}
-										}
-										unless (skip)
-										{
-											this->DeadState = WDS_DEAD;
-											Quit();
+										invaders::shields::bnkr[2]->Circle(1, edge+Rand(-3,3), impact+Rand(-3,3), 5+Rand(5), 0, 1, 0,0,0, true, 128);
+										this->DeadState = WDS_DEAD;
+										Quit();
 											
-										}
+										
 									}
 									
 								}
@@ -513,27 +496,15 @@ namespace invaders
 									//we are inside the ffc by this much
 									int edge = Abs(xpos-shields::four::maxX);
 									int impact = Abs(118-(this->Y)); //the depth of the impact
-									if (DEBUG) printf("impact at y: %d\n", impact);
+									printf("SHIELD 4: edge is: %d\n", edge);
+									printf("SHIELD 4: impact at y: %d\n", impact);
 									//edge is the left edge of the bitmap for ffc[1]
 									
-									invaders::shields::bnkr[3]->Circle(0, edge, impact, 4, 0, 1, 0,0,0, true, 128);
-									for ( int q = 0; q < 48; ++q )
-									{
-										if ( theinvaders.swarm[q]->isValid() )
-										{ 
-											if ( Collision(this, theinvaders.swarm[q]) )
-											{
-												skip = true;
-												
-											}
-										}
-									}
-									unless (skip)
-									{
-										this->DeadState = WDS_DEAD;
-										Quit();
+									invaders::shields::bnkr[3]->Circle(1, edge+Rand(-3,3), impact+Rand(-3,3), 5+Rand(5), 0, 1, 0,0,0, true, 128);
+									this->DeadState = WDS_DEAD;
+									Quit();
 										
-									}
+									
 								}
 							}
 						}
