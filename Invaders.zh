@@ -1,5 +1,5 @@
 // Invaders
-// v0.3.0
+// v0.3.1
 // 12th April, 2020
 // ZoriaRPG
 //
@@ -38,6 +38,7 @@
 *	- Now requires Alha 58.
 * 0.2.1 - Fixed UFO double spawn. Added UFO score display. Fixed other bugs with UFO. 
 * 0.3.0 - Begin adding the ability for player weapons to damage bunkers.
+* 0.3.1 - Corrected formulae for player shots damaging bunkers. 
 */
 
 /*TODO
@@ -1082,109 +1083,115 @@ namespace invaders
 					{
 						
 						
-						unless(SKIPBUNKERS)
-						{
-							//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+16+2) * 10000;
-							//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+1) * 10000; //penetrates one pixel
-							//printf("ew col is: %d\n", col);
-							bitmap scrn = Game->LoadBitmapID(RT_SCREEN);
-							//printf("scrn pointer is: %f\n", <int>scrn);
-							int col2 = scrn->GetPixel(this->X+8, this->Y-2) * 10000; //penetrates one pixel
-							//printf("scrn col2 is: %f\n", col2);
-							//printf("pixel colour: %f\n", col);
-							const int COL_FIRST = (16*11)+1;
-							const int COL_LAST = (16*12)+1;
-							if ( col2 >= (COL_FIRST) && col2 < (COL_LAST) ) //cset 11
-							{
-								bool skip;
-								printf("LWeapon Bunker collision on colour: %d\n", col2);
-								if ( this->X+4 < shields::four::minX )
-								{
-									//must be shield 1, 2, or 3
-									if ( this->X+4 < shields::three::minX )
-									{
-										//must be shield 1, 2
-										if ( this->X+4 < shields::two::minX )
-										{
-											//must be shield 1
-											int xpos = this->X+8;
-											//we are inside the ffc by this much
-											int edge = Abs(shields::one::maxX-xpos);
-											printf("LW SHIELD 1: edge is: %d\n", edge);
-											int impact = Abs(118-(this->Y))+16; //the depth of the impact
-											printf("LW SHIELD 1: impact at y: %d\n", impact);
-											//edge is the left edge of the bitmap for ffc[1]
-											
-											invaders::shields::bnkr[0]->Circle(1, edge, impact, 8, 0, 1, 0,0,0, true, 128);
-											this->DeadState = WDS_DEAD;
-											Quit();
-												
-											
-											
-										}
-										else
-										{
-											//must be shield 2
-											int xpos = this->X+8;
-											//we are inside the ffc by this much
-											int edge = Abs(xpos-shields::two::maxX);
-											printf("LW SHIELD 2: edge is: %d\n", edge);
-											int impact = Abs(118-(this->Y)); //the depth of the impact
-											printf("LW SHIELD 2: impact at y: %d\n", impact);
-											//edge is the left edge of the bitmap for ffc[2]
-											
-											invaders::shields::bnkr[1]->Circle(1, edge, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
-											this->DeadState = WDS_DEAD;
-											Quit();
-												
-											
-										}
-										
-									}
-									else
-									{
-										//must be shield 3
-										int xpos = this->X+4;
-										//we are inside the ffc by this much
-										int edge = Abs(xpos-shields::three::maxX);
-										printf("SHIELD 3: edge is: %d\n", edge);
-										int impact = Abs(118+(this->Y)); //the depth of the impact
-										printf("SHIELD 3: impact at y: %d\n", impact);
-										//edge is the left edge of the bitmap for ffc[1]
-										
-										invaders::shields::bnkr[2]->Circle(1, edge+Rand(-3,3), impact+Rand(-3,3), 5+Rand(5), 0, 1, 0,0,0, true, 128);
-										this->DeadState = WDS_DEAD;
-										Quit();
-											
-										
-									}
-									
-								}
-								else
-								{
-									//must be shield 4
-									int xpos = this->X+4;
-									//we are inside the ffc by this much
-									int edge = Abs(xpos-shields::four::maxX);
-									int impact = Abs(118+(this->Y)); //the depth of the impact
-									printf("SHIELD 4: edge is: %d\n", edge);
-									printf("SHIELD 4: impact at y: %d\n", impact);
-									//edge is the left edge of the bitmap for ffc[1]
-									
-									invaders::shields::bnkr[3]->Circle(1, edge+Rand(-3,3), impact+Rand(-3,3), 5+Rand(5), 0, 1, 0,0,0, true, 128);
-									this->DeadState = WDS_DEAD;
-									Quit();
-										
-									
-								}
-							}
-						}
+						
 						//otherwise complete full move. 
 						
 						//for every pixel of movement, check collisions.
 						for ( int q = 0; q < STEP; ++q )
 						{
 							--this->Y;
+							unless(SKIPBUNKERS)
+							{
+								//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+16+2) * 10000;
+								//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+1) * 10000; //penetrates one pixel
+								//printf("ew col is: %d\n", col);
+								bitmap scrn = Game->LoadBitmapID(RT_SCREEN);
+								//printf("scrn pointer is: %f\n", <int>scrn);
+								int col2 = scrn->GetPixel(this->X+8, this->Y+1) * 10000; //penetrates one pixel
+								//printf("scrn col2 is: %f\n", col2);
+								//printf("pixel colour: %f\n", col);
+								const int COL_FIRST = (16*11)+1;
+								const int COL_LAST = (16*12)+1;
+								if ( col2 >= (COL_FIRST) && col2 < (COL_LAST) ) //cset 11
+								{
+									bool skip;
+									printf("LWeapon Bunker collision on colour: %d\n", col2);
+									if ( this->X+4 < shields::four::minX )
+									{
+										//must be shield 1, 2, or 3
+										if ( this->X+4 < shields::three::minX )
+										{
+											//must be shield 1, 2
+											if ( this->X+4 < shields::two::minX )
+											{
+												//must be shield 1
+												//int xpos = this->X+8;
+												//if ( DEBUG ) printf("LW1 xpos: %d\n", xpos);
+												
+												
+												//left edge of bunker
+												//int leftpos = shields::one::minX;
+												//printf("LW1 bunker leftpos: %d\n",leftpos);
+												//x position of weapons
+												//int wx = this->X+8;
+												//if ( DEBUG ) printf("LW1 bunker wx: %d\n",wx);
+												//difference
+												//int diff = Abs(wx-leftpos);
+												//if ( DEBUG ) printf("LW1 bunker diff: %d\n",diff);
+									
+												//position is left edge + difference?
+												//int edge = leftpos+diff;
+												//if ( DEBUG ) printf("LW1 bunker edge: %d\n",edge);
+												
+												
+												
+												//we are inside the ffc by this much
+												//int edge = shields::one::minX-xpos;
+												int hitpos = (this->X+8) - shields::one::minX;
+												if ( DEBUG ) printf("LW1 bunker HITPOS: %d\n",hitpos);
+												int impact = Abs(118-(this->Y))+8; //the depth of the impact
+												if ( DEBUG ) printf("LW SHIELD 1: impact at y: %d\n", impact);
+													//edge is the left edge of the bitmap for ffc[1]
+												
+												invaders::shields::bnkr[0]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+												this->DeadState = WDS_DEAD;
+												Quit();
+													
+												
+												
+											}
+											else
+											{
+												
+												int hitpos = (this->X+8) - shields::two::minX;
+												int impact = Abs(118-(this->Y))+8; //the depth of the impact
+												
+												invaders::shields::bnkr[1]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+												this->DeadState = WDS_DEAD;
+										
+												Quit();
+													
+												
+											}
+											
+										}
+										else
+										{
+											int hitpos = (this->X+8) - shields::three::minX;
+											int impact = Abs(118-(this->Y))+8; //the depth of the impact
+											
+											invaders::shields::bnkr[2]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+											this->DeadState = WDS_DEAD;
+									
+											Quit();
+											
+										}
+										
+									}
+									else
+									{
+										int hitpos = (this->X+8) - shields::four::minX;
+										int impact = Abs(118-(this->Y))+8; //the depth of the impact
+										
+										invaders::shields::bnkr[3]->Circle(1, hitpos, impact, 5+Rand(5), 0, 1, 0,0,0, true, 128);
+										this->DeadState = WDS_DEAD;
+								
+										Quit();
+											
+										
+									}
+								}
+							}
 							//if there is a collision, move until reaching that Y pos, then kill the missile.
 							for ( int q = Screen->NumNPCs(); q < 0; --q )
 							{
