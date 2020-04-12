@@ -14,12 +14,52 @@
 * 0.0.4 - Added player attack. Disabled bunker bitmap/getpixel checks for now. 
 * 	- Added sounds and actions. Added player init script. 
 * 	- Fixed bugs with enemies not attacking. 
-* 0.05  - Game now ends on landing. Enemy missiles now damage the player. 
-* 0.06	- Fixed some visual bugs, and added splat effect. 
-* 0.07  - Added scoring. Disabled the active subscreen.
+* 0.0.5 - Game now ends on landing. Enemy missiles now damage the player. 
+* 0.0.6	- Fixed some visual bugs, and added splat effect. 
+* 0.0.7 - Added scoring. Disabled the active subscreen.
 * 	- Added additional stages. Show 'R' (round) indicator. 
-* 0.08  - Some clamping to force step to stay in bounds. 
+* 0.0.8 - Some clamping to force step to stay in bounds. 
+* 0.1.0 - Refactored aliens.
 */
+
+/*TODO
+
+Make a sngle dummy enemy. It runs the script.
+Place all other invaders in an array and move them as a set.
+
+Every frame:
+
+If moving left, find the leftmost invader.
+If moving right, find the rightmost invader.
+If moving down, find the lowest Y invader.
+
+Store edgenpc and lowestnpc 
+
+CHeck onedge only for the edgemost based on dir
+Calculate maximum move left or right based on the current step
+	restriced by edge of screen.
+Move left or right by the clamped value
+If this places them on the edge, flip dir.
+Check the pixels for the bunkers one pixel under the lowest invader.
+	If they exist, draw a link in a specific colour (0, i suppose) onto each 
+	bunker bitmap,. erasing that line.
+Check if the lowest invader Y landed.
+	If so, GameOver()
+Try to fire;
+	Up to six shots per second.
+		CHoose up to six invaders and randomly shoot. 
+	
+	THe shot script needs to check its x and Y pos against hardcoded 
+	positions for bunkers
+	
+	If it is inside a bunker. and the spot in the bunker is not colour 0.
+		then write colour 0 to its bitmap.
+		
+	Perhaps it's be better to draw all four bunkers to a single bitmap, so that 
+	we can write colour 0 to one bitmap instead of four. 
+*/
+
+//Bunnies should drop blue egg bombs
 
 int ofs = 0;
 namespace invaders
@@ -80,7 +120,7 @@ namespace invaders
 	{
 		//Audio->PlaySound(5);
 		++Game->Counter[CR_KEYS];
-		aliens::spawn();
+		aliens::theinvaders.spawn(aliens::theinvaders.swarm);
 	}
 	global script inv
 	{
@@ -89,20 +129,20 @@ namespace invaders
 			playr::init();
 			shields::init(); //Set up bunker bitmaps.
 			aliens::init(); //Set up temp bitmap for shield collisions. 
-			aliens::spawn();
+			//aliens::spawn();
 			while(1)
 			{
 				if ( gameover ) 
 				{
 					GameOver();
 				}
-				runclock();
-				aliens::animate();
+				//runclock();
+				//aliens::animate();
 				playr::animate();
 				playr::clamp();
 				playr::attack();
 				
-				if ( aliens::hitedge )
+				/*if ( aliens::hitedge )
 				{
 					printf("hit screen edge\n");
 					for ( int qe = Screen->NumNPCs(); qe > 0; --qe )
@@ -129,7 +169,8 @@ namespace invaders
 					}
 					aliens::hitedge = 0;
 				}
-				unless(Screen->NumNPCs())
+				*/
+				unless(Screen->NumNPCs() > 1)
 				{
 					nextstage();
 				}
@@ -148,7 +189,7 @@ namespace invaders
 			shields::init(); //Set up bunker bitmaps.
 			aliens::init(); //Set up temp bitmap for shield collisions. 
 			//aliens::animate();
-			aliens::spawn();
+			//aliens::spawn();
 		}
 	}
 	
@@ -163,7 +204,7 @@ namespace invaders
 		
 	namespace aliens
 	{
-		npc grid[12*4]; 
+		npc grid[theinvaders.NUMINVADERS]; 
 		int turn_cooldown = 0; 
 		int hitedge = 0;
 		const int COOLDOWN_TIME = 15;
@@ -190,120 +231,27 @@ namespace invaders
 		
 		void wipegrid()
 		{
-			for ( int q = 0; q < 48; ++q ) 
+			for ( int q = 0; q < theinvaders.NUMINVADERS; ++q ) 
 			{
 				grid[q] = NULL;
+				theinvaders.swarm[theinvaders.NUMINVADERS] = NULL;
 			}
+			theinvaders.lowest = NULL;
+			theinvaders.leftmost = NULL;
+			theinvaders.rightmost = NULL;
+			theinvaders.curstep = INITIALSTEP;
+			
 		}
 		
 		//Misc[]
 		const int aclk = 2; 
 		const int curtile = 3;
-		void animate()
-		{
-			for ( int q = Screen->NumNPCs(); q > 0; --q )
-			{
-				npc n = Screen->LoadNPC(q);
-				++n->Misc[aclk]; 
-				unless (( n->Misc[aclk]%16 ))
-				{
-					if ( n->Misc[curtile] < 7 )
-					{
-						++n->ScriptTile;
-						++n->Misc[curtile];
-					}
-					else
-					{
-						n->ScriptTile = n->OriginalTile;
-						n->Misc[curtile] = 0;
-					}
-				}
-				
-			}
-			
-		}
-		void spawn()
-		{
-			step = INITIALSTEP; 
-			wipegrid(); //Clear old pointers. 
-			int id = FIRST; int x = STARTX, y = STARTY;
-			starttile tiles[4] = { stA, stB, stC, stD };
-			for ( int q = 0; q < 48; ++q )
-			{
-				if ( (q) && (!(q%12)) ) //start of a row
-				{
-					++id;
-					y += 16;
-					x = STARTX;
-				}
-				npc n = Screen->CreateNPC(id);
-				n->X = x; n->Y = y; //Position on the grid.
-				n->DrawYOffset = -8;
-				n->HitYOffset = -8; //So that they 'land' at the visible 8th pixel.
-				x += 16; //Increment column.
-				grid[q] = n; //Stor its pointer into the grid. 
-			}
-		}
 		
-		adir dir = dRight; //The direction of their march.
 		
-		void changedir()
-		{
-			dir = ((dir)?dRight:dLeft);
-		}
-		void descend(npc n)
-		{
-			n->Y += DESCEND_Y_PIXELS;
-		}
 		
 		const int MAXEW = 6;
 		const int ATKSFX = 1;
 		
-		void runclock(npc n)
-		{
-			//May need to adjust the ret type here.
-			if ( Screen->NumEWeapons() >= MAXEW ) return;
-			//Check the individual firing clock of the alien.
-			int clk = n->Misc[FIRECLK];
-			printf("n->Misc[FIRECLK] clk is: %d\n", clk);
-			if ( n->Misc[FIRECLK] > 0 )
-			{
-				--n->Misc[FIRECLK]; //Cooldown
-			}
-			else if (  n->Misc[FIRECLK] < 0 )
-			{
-				n->Misc[FIRECLK] = 0;
-			}
-			else
-			{
-				unless ( Rand(5) ) 
-				{
-					n->Misc[FIRECLK] = Rand(FIRECLK_MIN,FIRECLK_MAX);
-					n->Attack();
-					Audio->PlaySound(ATKSFX);
-				}
-			}
-			/*
-			unless(clk) 
-			{
-				n->Misc[FIRECLK] = Rand(FIRECLK_MIN,FIRECLK_MAX);
-				unless ( Rand(5) ) 
-				{
-					n->Attack();
-					Audio->PlaySound(ATKSFX);
-					printf("attacking\n");
-				}
-				//! The weapon script handles the enemy missile
-			}
-			else
-			{
-				
-			}
-			*/
-		}
-		/* 
-			Returns if the aliens are on the edge of the screen, based on their direction.
-		*/
 		
 		const int MISSILESPR = 10;
 		const int STEP = 2;
@@ -333,284 +281,280 @@ namespace invaders
 			}
 		}
 		
-		bool onedge(npc n)
-		{
-			switch(n->Dir)
-			{
-				case DIR_LEFT:
-				{
-					if ( n->X < 1 ) 
-					{
-						//Change direction
-						//changedir();  //global
-							//Descend
-						//descend(n);
-						return true;
-					}
-				}
-				case DIR_RIGHT:
-				{
-					if ( n->X > 239 ) 
-					{
-						//Change direction
-						//changedir();  //global
-						//Descend
-						//descend(n);
-						return true;
-					}
-				}
-				default: return false;
-			}
-			return false;
-		}
 		
 		const int STEPSFX = 3;
 		int maxstep;
-		npc script alien
+		
+		npc script theinvaders
 		{
+			const int NUMINVADERS = 48;
+			npc lowest = NULL;
+			npc leftmost = NULL;
+			npc rightmost = NULL;
+			npc swarm[NUMINVADERS];
+			int curstep = INITIALSTEP;
 			void run()
 			{
-				this->ScriptTile = this->OriginalTile;
+				
+				npc leader = this; 
 				this->Dir = DIR_RIGHT;
-				int tmpx, tmpy;
-				int splatted = 0;
-				//int aclk; //8 frames, at a speed of 16
-				//int curtile = 0;
+				this->HitYOffset = -32678; //Can't be hit
+				this->DrawYOffset = -32678; //Can't be seen
+				
+				int lx, ly;
+				int invclk = 0;
+				spawn(swarm);
 				while(1)
 				{
-					if ( this->HP <= 0 ) 
+					for ( int q = 0; q < NUMINVADERS; ++q )
 					{
+						//If moving right, find the rightmost invader.
+						if ( this->Dir == DIR_RIGHT )
+						{
+							if ( swarm[q]->isValid() )
+							{
+								if ( swarm[q]->X > (( rightmost->isValid() ) ? rightmost->X : -1) )
+								{
+									rightmost = swarm[q];
+								}
+							}
+						}
+						//If moving left, find the leftmost invader.
+						else
+						{
+							if ( swarm[q]->isValid() )
+							{
+								if ( swarm[q]->X < (( leftmost->isValid() ) ? leftmost->X : 300) )
+								{
+									leftmost = swarm[q];
+								}
+							}
+						}
 						
-						unless(splatted)
+						
+						//If moving down, find the lowest Y invader.
+						if ( swarm[q]->isValid() )
+						{
+							if ( swarm[q]->Y > (( lowest->isValid() ) ? lowest->Y : 0) )
+							{
+								lowest = swarm[q];
+							}
+						}
+					}
+					
+					splat(swarm);
+					move(leader, swarm, invclk);
+					animate(swarm);
+					attack(swarm);
+					cleanup(swarm);
+					
+					//Check for Landing
+					if ( lowest->Y >= 152 )
+					{
+						gameover = 1;
+					}
+					
+					++invclk;
+					Waitframe();
+				}
+			}
+			void spawn(npc swarm)
+			{
+				wipegrid(); //Clear old pointers. 
+				int id = FIRST; int x = STARTX, y = STARTY;
+				starttile tiles[4] = { stA, stB, stC, stD };
+				for ( int q = 0; q < NUMINVADERS; ++q )
+				{
+					if ( (q) && (!(q%12)) ) //start of a row
+					{
+						++id;
+						y += 16;
+						x = STARTX;
+					}
+					swarm[q]->ScriptTile = swarm[q]->OriginalTile;
+					swarm[q] = Screen->CreateNPC(id);
+					swarm[q]->X = x; swarm[q]->Y = y; //Position on the grid.
+					swarm[q]->DrawYOffset = -8;
+					swarm[q]->HitYOffset = -8; //So that they 'land' at the visible 8th pixel.
+					x += 16; //Increment column.
+					grid[q] = swarm[q]; //Stor its pointer into the grid. 
+				}
+				
+				
+			}
+			
+			void animate(npc swarm)
+			{
+				for ( int q = 0; q < NUMINVADERS; ++q )
+				{
+					if ( swarm[q]->isValid() )
+					{
+						++swarm[q]->Misc[aclk]; 
+						unless (( swarm[q]->Misc[aclk]%16 ))
+						{
+							if ( swarm[q]->Misc[curtile] < 7 )
+							{
+								++swarm[q]->ScriptTile;
+								++swarm[q]->Misc[curtile];
+							}
+							else
+							{
+								swarm[q]->ScriptTile = swarm[q]->OriginalTile;
+								swarm[q]->Misc[curtile] = 0;
+							}
+						}
+					}
+					
+				}
+				
+			}
+			
+			const int SPLATTED = 6;
+			void splat(npc swarm)
+			{
+				for ( int q = 0; q < NUMINVADERS; ++q )
+				{
+					if ( swarm[q]->isValid() && swarm[q]->HP < 1 )
+					{
+						unless(swarm[q]->Misc[SPLATTED])
 						{
 							lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
 							splat->HitYOffset = -32768; 
 							splat->HitYOffset = -37768;
 							splat->UseSprite(SPLATSPRITE);
 							
-							splat->X = this->X;
-							splat->Y = this->Y;
-							this->DrawYOffset = -32768;
-							switch(Screen->NumNPCs())
-							{
-								case 24...49: aliens::step = 8; break;
-								case 19...23: aliens::step = 16; break;
-								case 1...8: aliens::step = 32; break;
-								default: break;
-							}
-							bool a = onedge(this);
-							printf("aliens::step: %d\n", aliens::step);
-							Game->Counter[CR_RUPEES] += this->Y;
-							splatted = 1;
+							splat->X = swarm[q]->X;
+							splat->Y = swarm[q]->Y;
+							Game->Counter[CR_RUPEES] += swarm[q]->Y;
+							swarm[q]->Misc[SPLATTED] = 1;
 						}
-						
-						Quit();
 					}
-					//Animation always happens, but not here.
-					/*++aclk; 
-					unless (( aclk%16 ))
-					{
-						if ( curtile < 8 )
-						{
-							++this->ScriptTile;
-							++curtile;
-						}
-						else
-						{
-							this->ScriptTile = this->OriginalTile;
-							curtile = 0;
-						}
-					}*/
-					
-					//Alien actions happen in SECONDS, not in FRAMES.
-					while(alienclk < 59) 
-					{
-						if ( this->HP <= 0 ) 
-						{
-							unless(splatted)
-							{
-								lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
-								splat->HitYOffset = -32768; 
-								splat->HitYOffset = -37768;
-								splat->UseSprite(SPLATSPRITE);
-								
-								splat->X = this->X;
-								splat->Y = this->Y;
-								this->DrawYOffset = -32768;
-								switch(Screen->NumNPCs())
-								{
-									case 24...49: aliens::step = 8; break;
-									case 19...23: aliens::step = 16; break;
-									case 1...8: aliens::step = 32; break;
-									default: break;
-								}
-								//aliens::step += 0.50;
-								bool a = onedge(this);
-								printf("aliens::step: %d\n", aliens::step);
-								Game->Counter[CR_RUPEES] += this->Y;
-								splatted = 1;
-							}
-							
-							Quit();
-						}
-						Waitframe();
-					}
-
-					tmpbmp->Clear(0);
-					tmpbmp->DrawTile(0, 0, 0, this->ScriptTile, 1, 1, this->CSet, -1, -1, 0, 0, 0, -1, true, 128);
-					
-					
-					//Every 59th frame
-					
-				//	//If cooldown on movement is set, wait. 
-				//	while(--turn_cooldown > 0) 
-				//	{
-				//		//Don't continue to move for a few frames.
-				//		Waitframe();
-				//	}
-					//Move left or right based on dir.
-					for ( int q = 0; q < ((aliens::step)<<0); ++q )
-					{
-						//for each pixel of their step...
-						tmpx = Clamp(((this->Dir == DIR_RIGHT)?(this->X+q):(this->X-q)), 0, 240);
-						bool a = onedge(this);
-						//Check for collisions
-						
-						//Check for touching the shields
-						
-						//Obliterate shields
-					
-						bitmap playfield = Game->LoadBitmapID(RT_SCREEN);
-						/*
-						for ( int ex = 0; ex < 16; ++ex )
-						{
-							for ( int ey = 0; ey < 16; ++ey )
-							{
-								if ( Graphics->GetPixel(playfield, this->X + ex, this->Y + ey) )
-								{
-									//compare against the shape of the enemy bitmap. 
-									printf("overlay at %d, %d\n", ex, ey);
-									
-								}
-							}
-							
-						}
-						*/
-						
-						/*for ( int q = 0; q < 4; ++q )
-						{
-							if ( Collision(this, shields::loc[q]) )
-							{
-								printf("Shield Collision\n");
-								//Find the offset to the current shield
-								int shx = shields::loc[q]->X;
-								int shy = shields::loc[q]->Y;
-								
-								int alnx = this->X;
-								int alny = this->Y;
-								
-								int shieldbmpx = Abs(shx-alnx);
-								int shieldbmpy = Abs(shy-alny);
-								
-								//printf here
-								
-								for ( int bx = 0; bx < 16; ++bx )
-								{
-									for ( int by = 0; by < 16; ++by )
-									{
-										//Solid pixels of the alien wipe out blocks of the shield.
-										if ( Graphics->GetPixel(tmpbmp, bx, by) )
-										{
-											printf("%d,%d; ", bx, by);
-											//shields::bnkr[q]->PutPixel(7, shieldbmpx, shieldbmpy, 0, 0,0,0, 128);
-										}
-									}
-								}
-							}
-							
-						}*/
-						
-					}
-					
+				}
+			}
+			
+			void move(npc leader, npc swarm, int clk)
+			{
+				unless ( clk%60 )
+				{
 					Audio->PlaySound(STEPSFX);
-					
-					//Perform actual movement
-					switch(this->Dir)
+					switch(leader->Dir)
 					{
 						case DIR_LEFT:
 						{
-							maxstep = 0;
-							for ( int q = 0; q < step; ++q )
+							//if on a screen edge
+							if ( leftmost->X <= 1 ) 
 							{
-								++maxstep;
-								if (( this->X-maxstep ) < 0 ) 
+								descend(swarm);
+								leader->Dir = DIR_RIGHT;
+							}
+							else
+							{
+								//Find the maximum step
+								int maxstep = ( leftmost->X - curstep > -1 ) ? maxstep : leftmost->X;
+								//Move the full step up to the edge of the screen, but not beyond
+								for ( int q = 0; q < NUMINVADERS; ++q )
 								{
-									--maxstep;
-									break;
+									swarm[q]->X -= maxstep;
 								}
 							}
-							
-								
-							this->X = this->X-maxstep;
-							
 							break;
 						}
 						case DIR_RIGHT:
 						{
-							maxstep = 0;
-							for ( int q = 0; q < step; ++q )
+							//if on a screen edge
+							if ( leftmost->X >= 239 ) 
 							{
-								++maxstep;
-								if (( this->X+maxstep ) > 240 ) 
+								descend(swarm);
+								leader->Dir = DIR_LEFT;
+							}
+							else
+							{
+								//Find the maximum step
+								int maxstep = ( rightmost->X + curstep < 241 ) ? maxstep : (240-rightmost->X);
+								//Move the full step up to the edge of the screen, but not beyond
+								for ( int q = 0; q < NUMINVADERS; ++q )
 								{
-									--maxstep;
-									break;
+									swarm[q]->X += maxstep;
 								}
 							}
-							
-								
-							this->X = this->X+maxstep;
-							
 							break;
 						}
 						
 					}
 					
-					//check for screen edge. 
-					bool edge = onedge(this);
-					if ( edge ) 
-					{
-						aliens::hitedge = 1;
-					}
-					
-					//If we reach the edge:
-						//Move down one column.
-						//Change dir. 
-				
-					//Set dirchange cooldown
-					turn_cooldown = COOLDOWN_TIME;
-					
-					//Check if we have landed.
-					if ( this->Y >= 152 )
-					{
-						gameover = 1;
-					}
-					
-						
-					//! Move one pixel at a time and check for bunkers.
-					//! Wipe bunker bitmaps column on collision. 
-						
-					//try to fire
-					runclock(this);
-						
-					//if we die, bump the step.
-					Waitdraw();
-					Waitframe();
 				}
 			}
-		}
+			
+			void descend(npc swarm)
+			{
+				for ( int q = 0; q < NUMINVADERS; ++q )
+				{
+					if ( swarm[q]->isValid() )
+					{
+						swarm[q]->Y += DESCEND_Y_PIXELS;
+					}
+				}
+			}
+			const int FIRING = 7; //Misc index to mark that an npc is firing. 
+			void attack(npc swarm)
+			{
+				//count remaining aliens
 				
-	}
+				int count = 0; int truecount = 0;
+				npc canfire[NUMINVADERS]; int cf_ix = 0;
+				for ( int q = 0; q < NUMINVADERS; ++q )
+				{
+					if ( swarm[q] ->isValid() && swarm[q]->HP > 0 )
+					{
+						++count;
+						//++truecount;
+						canfire[cf_ix] = swarm[q];
+						++cf_ix; //Put all aliens that can fire into a sequential list.
+					}
+				}
+				unless(count) { return; } //no aliens left
+				//choose up to six aliens to fire shots
+				count = Clamp(count, 1, 6); //vound the max shots
+				count = Rand(count)+1; //choose a random number of shots, min 1
+				
+				//Get length of truecount array
+				for ( int truecount = 0; canfire[truecount]->isValid(); ++truecount );
+				
+				//Select 'count' random invaders to fire. 
+				do{
+					int firepos = Rand(0, truecount);
+					unless ( canfire[firepos]->Misc[FIRING] ) //unless it is firing this time
+					{
+						canfire[firepos]->Attack();
+						canfire[firepos]->Misc[FIRING] = 1;
+						--count;
+					}
+						
+				} while (count); //Until count is 0.
+				
+				/* would be nice if we allowed variable arrays locally
+				npc positions[truecount];
+				if ( swarm[q] ->isValid() && swarm[q]->HP > 0 )
+				{
+					++count;
+					++truecount;
+				}
+				*/
+			}
+			void cleanup(npc swarm)
+			{
+				//cleanup of status values
+				for ( int q = 0; q < NUMINVADERS; ++q )
+				{
+					if ( swarm[q]->isValid() )
+					{
+						//clear attacking status
+						swarm[q]->Misc[FIRING] = 0;
+					}
+				}
+			}
+		} // end run 
+	} // end script
 
 	namespace playr
 	{
