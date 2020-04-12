@@ -1,5 +1,5 @@
 // Invaders
-// v0.3.3
+// v0.4.1
 // 12th April, 2020
 // ZoriaRPG
 //
@@ -42,21 +42,14 @@
 * 0.3.2 - Corrected formulae for invader shots damaging bunkers.
 * 0.3.3 - Slight adjustments to player and enemy shots and bunker destruction.
 * 	- Tuned them, and added constants. I'm satisfied with them, now. 
+* 0.4.0 - Add life regen based on points. Added proper high score tracking. Reset P1 score on death/continue game.
+* 0.4.1 - Added sound effects for destroying the UFO, for Game Over, and for Life Refill.
+* 	- Death now calls GameOver(), and GameOver() now terminates all other sfx.
+* 	- You now get a YOU WIN screen and sound if you reach R256.
 */
 
 /*TODO
 
-
-Fix GetPixel in the source so that it returns the correct values for the screen.
-	Finish bunkers.
-	
-Give UFO 1000 hp, and run its movement when its hp is < 1000
-Fix UFO not dying. Stop ufo movement when hit.
-
-Aliens destroy bunkers on contact.
-
-Points = Life Refills
-Every 2000 points gain +4 HP?
 
 Shoot ufo as soon as it apears: full refill
 
@@ -83,6 +76,13 @@ namespace invaders
 	const int SPLATSPRITE = 34; 
 	const bool SKIPBUNKERS = 0;
 	const bool DEBUG = 0;
+	
+	const int CR_HISCORE = CR_SCRIPT1;
+	const int CR_SCORE_P1 = CR_RUPEES;
+	const int CR_ROUND = CR_KEYS;
+	const int SFX_GAMEOVER = 9;
+	const int SFX_WIN = 12;
+	
 	namespace shields
 	{
 		bitmap bnkr[4];
@@ -176,13 +176,24 @@ namespace invaders
 	void nextstage()
 	{
 		Audio->PlaySound(4);
-		++Game->Counter[CR_KEYS];
+		++Game->Counter[CR_ROUND];
+		if ( Game->Counter[CR_ROUND] > 255 ) WinGame();
 		aliens::theinvaders.spawn(aliens::theinvaders.swarm);
 	}
+	
 	global script inv
 	{
+		enum { lfPrevious, lfCurrent, lfLAST }; 
+		void update_hiscore()
+		{
+			if (Game->Counter[CR_SCORE_P1] > Game->Counter[CR_HISCORE] )
+			{				
+				Game->Counter[CR_HISCORE] = Game->Counter[CR_SCORE_P1];
+			}
+		}
 		void run()
 		{
+			int lastlifefill[lfLAST] = {0}; 
 			playr::init();
 			shields::init(); //Set up bunker bitmaps.
 			aliens::init(); //Set up temp bitmap for shield collisions and UFO clock. 
@@ -212,35 +223,11 @@ namespace invaders
 				playr::animate();
 				playr::clamp();
 				playr::attack();
+				playr::lifefill(lastlifefill);
 				
-				/*if ( aliens::hitedge )
-				{
-					printf("hit screen edge\n");
-					for ( int qe = Screen->NumNPCs(); qe > 0; --qe )
-					{
-						npc nn = Screen->LoadNPC(qe);
-						
-						switch(nn->Dir)
-						{
-							case DIR_LEFT:
-							{
-								//++nn->X;
-								nn->Dir = DIR_RIGHT;
-								aliens::descend(nn);
-								break;
-							}
-							case DIR_RIGHT:
-							{
-								//--nn->X;
-								nn->Dir = DIR_LEFT;
-								aliens::descend(nn);
-								break;
-							}
-						}
-					}
-					aliens::hitedge = 0;
-				}
-				*/
+				update_hiscore();
+				
+				
 				
 				Waitdraw();
 				playr::clamp();
@@ -248,6 +235,32 @@ namespace invaders
 			}
 		}
 	}
+	
+	
+	player script playeractive
+	{
+		void run()
+		{
+			while(1)
+			{
+				if ( Player->HP < 1 )
+				{
+					Player->HP = 1;
+					GameOver();
+				}
+				Waitframe();
+			}
+		}
+	}
+	//! Would be nice, but you can't press F6 during this script.
+	//player script death
+	//{
+	//	void run()
+	//	{
+	//		//Game->Save(); //Saving delays display of the text and the audio effect for 30 seconds on my SSD. Let this be a menu.
+	//		GameOver();
+	//	}
+	//}
 	
 	global script newgame
 	{
@@ -270,9 +283,36 @@ namespace invaders
 		Game->Suspend[susptLWEAPONSCRIPTS] = true;
 		Game->Suspend[susptEWEAPONSCRIPTS] = true;
 		Game->Suspend[susptNPCSCRIPTS] = true;
+		for ( int q = 0; q < 12; ++q ) 
+		{
+			Audio->EndSound(q);
+		}
+		Audio->PlaySound(SFX_GAMEOVER);
 		while(1)
 		{
 			Screen->DrawString(7, 100, 100, 1, 0x92, 0x0F, 0, "    GAME OVER    ", 128);
+			Waitframe();
+		}
+		
+	}
+	
+	void WinGame()
+	{
+		Game->Suspend[susptGUYS] = true;
+		Game->Suspend[susptLWEAPONS] = true;
+		Game->Suspend[susptEWEAPONS] = true;
+		Game->Suspend[susptLINK] = true;
+		Game->Suspend[susptLWEAPONSCRIPTS] = true;
+		Game->Suspend[susptEWEAPONSCRIPTS] = true;
+		Game->Suspend[susptNPCSCRIPTS] = true;
+		for ( int q = 0; q < 12; ++q ) 
+		{
+			Audio->EndSound(q);
+		}
+		Audio->PlaySound(SFX_WIN);
+		while(1)
+		{
+			Screen->DrawString(7, 100, 100, 1, 0x92, 0x0F, 0, "     YOU WIN     ", 128);
 			Waitframe();
 		}
 		
@@ -357,7 +397,9 @@ namespace invaders
 		int AttClk_Min = 400; //not const
 		int AttClk_Max = 1000; //not const
 		const int TILE_BLANK = 5;
-		const int SFX_UFO_DEAD = 6;
+		const int SFX_UFO_DEAD = 5;
+		
+		const int SFX_LIFEFILL = 7;
 		const int SFX_UFO_GBSFX = 8;
 		const int SCORE_FRAMES = 45;
 		const int SCORE_X = 4;
@@ -407,16 +449,21 @@ namespace invaders
 					
 					Waitframe();
 				}
-				
+				if ( this->X > 239 ) //if the player shot it as it first appears
+				{
+					Audio->PlaySound(SFX_LIFEFILL);
+					Game->DCounter[CR_LIFE] += playr::HP_PER_LIFE_FILL;
+				}
 				Audio->EndSound(SFX_UFO_GBSFX);
 				
 				this->ScriptTile = TILE_BLANK; 
-				unless ( this->Misc[SPLATTED] || this->Misc[NOREWARD] ) 
+				
+				unless ( this->Misc[SPLATTED] || this->Misc[NOREWARD] ) //player killed it
 				{
-					Game->Counter[CR_RUPEES] += points;
+					Game->Counter[CR_SCORE_P1] += points;
 					Audio->PlaySound(SFX_UFO_DEAD);
-					
 				}
+				
 				this->Misc[SPLATTED] = 1;
 				ufoclk = Rand((100), (4*60))+ SCORE_FRAMES;
 				for ( int q = 0; q < 4; ++q )
@@ -612,7 +659,7 @@ namespace invaders
 									theinvaders.stepclk -= 0.25;
 								}
 								
-								Game->Counter[CR_RUPEES] += this->InitD[SCORE];
+								Game->Counter[CR_SCORE_P1] += this->InitD[SCORE];
 								this->Misc[SPLATTED] = 1;
 							}
 							
@@ -886,7 +933,7 @@ namespace invaders
 								
 								splat->X = swarm[q]->X;
 								splat->Y = swarm[q]->Y;
-								Game->Counter[CR_RUPEES] += swarm[q]->Y;
+								Game->Counter[CR_SCORE_P1] += swarm[q]->Y;
 								swarm[q]->Misc[SPLATTED] = 1;
 							}
 						}
@@ -1055,6 +1102,28 @@ namespace invaders
 	{
 		//int cooldown = 0;
 		// Player movement and firing.
+		const int POINTS_PER_LIFEFILL = 2000;
+		const int HP_PER_LIFE_FILL = 8;
+		const int SFX_LIFEFILL = 7;
+		void lifefill(int ptr)
+		{
+			if ( Game->Counter[CR_SCORE_P1] > 0 )
+			{
+				if ( Game->Counter[CR_SCORE_P1] > ptr[inv.lfPrevious] )
+				{
+					if ( (Game->Counter[CR_SCORE_P1] - ptr[inv.lfPrevious]) >= POINTS_PER_LIFEFILL )
+					{
+						int temp = Game->Counter[CR_SCORE_P1]/1000; 
+						temp = temp << 0;
+						temp = temp * 1000;
+						ptr[inv.lfPrevious] = temp; //crop to even thousands
+						Audio->PlaySound(SFX_LIFEFILL);
+						Game->DCounter[CR_LIFE] += HP_PER_LIFE_FILL;
+						
+					}
+				}
+			}
+		}
 		namespace missile
 		{
 			int clk, step, cool, x, y;
@@ -1241,7 +1310,8 @@ namespace invaders
 
 		void init()
 		{
-			Game->Counter[CR_KEYS] = 1;
+			Game->Counter[CR_SCORE_P1] = 0;
+			Game->Counter[CR_ROUND] = 1;
 			Game->DisableActiveSubscreen = true;
 			Player->ScriptTile = 78060;
 		}
