@@ -1,7 +1,7 @@
 #include "std.zh"
 
 // Invaders
-// v0.5.0
+// v0.5.1
 // 12th April, 2020
 // ZoriaRPG
 //
@@ -49,12 +49,10 @@
 * 	- Death now calls GameOver(), and GameOver() now terminates all other sfx.
 * 	- You now get a YOU WIN screen and sound if you reach R256.
 * 0.5.0 - Added opening crawl and intro tune.
+* 0.5.1 - Cleanup of comments and logging.
 */
 
 /*TODO
-
-
-Shoot ufo as soon as it apears: full refill
 
 2P vs and 2P cooperative modes.
 
@@ -62,13 +60,12 @@ Galaxian attack waves.
 
 Moving bunkers--an arcade DIP/ROM difficulty option.
 
-TITLE screen 'Help my peole destroy pagan idols.
+Invader step clk and bgm speed based on numinvaders, not inc when killed.
 
-Alien ste clk and bgm speed based on numinvaders, not inc when killed.
+Bunnies could drop blue egg bombs, as their weapons.
 
 */
 
-//Bunnies should drop blue egg bombs
 #include "bitmap.zh"
 int ofs = 0;
 namespace invaders
@@ -99,15 +96,9 @@ namespace invaders
 			{
 				loc[q] = NULL;
 				bnkr[q] = Game->CreateBitmap(3*16, 2*16);
-				if (DEBUG) printf("bnkr[q]: %d\n", <int>bnkr[q]);
 				bnkr[q]->DrawTile(0, 0, 0, TILE, 3, 2, CSET, -1, -1, 0, 0, 0, 0, true, 128);
 				
 			}
-			//bnkr[0]->Write(0, "bunker1.png", true);
-			//bnkr[1]->Write(0, "bunker2.png", true);
-			//bnkr[2]->Write(0, "bunker3.png", true);
-			//bnkr[3]->Write(0, "bunker4.png", true);
-			
 		}
 		const int HEIGHT = 32;
 		const int WIDTH = 48;
@@ -148,10 +139,6 @@ namespace invaders
 		
 		void draw(ffc f, int spin)
 		{
-			//printf("bnkr[f->InitD[0]] is: %d\n", <int>bnkr[f->InitD[0]]);
-			//bnkr[f->InitD[0]]->Blit(0, RT_SCREEN, 0, 0, 3*16, 2*16, f->X, f->Y, 3*16, 2*16, 0, 0, 0, 0, 0, true);
-			//!Revert to this to stop the spin. 
-			//bnkr[f->InitD[0]]->Blit(0, <bitmap>(-2), 0, 0, 3*16, 2*16, f->X, f->Y, 3*16, 2*16, 0-(ofs/30), 0, 0, 0, 0, true);
 			bnkr[f->InitD[0]]->Blit(2, <bitmap>(-2), 0, 0, 3*16, 2*16, f->X, f->Y, 3*16, 2*16, 0-(ofs/30), 0, 0, 0, 0, true);
 			if ( spin ) --ofs;
 		}
@@ -201,20 +188,8 @@ namespace invaders
 			playr::init();
 			shields::init(); //Set up bunker bitmaps.
 			aliens::init(); //Set up temp bitmap for shield collisions and UFO clock. 
-			//aliens::spawn();
 			
-			
-			/*for ( int q = 0; q < 32; ++q )
-			{
-				for ( int w = 0; w < 48; ++w )
-				{
-					int col = Graphics->GetPixel(invaders::shields::bnkr[0], w, q); 
-					printf("Bunker[0] colour at x[%d], y[%d] is: %d\n", w, q, col);
-				}
-			}*/
 			Waitframes(100);
-			//int c1 = Graphics->GetPixel(RT_SCREEN, 78,118)*10000;
-			//	printf("c1: %d\n", c1);
 			
 			while(1)
 			{
@@ -222,16 +197,13 @@ namespace invaders
 				{
 					GameOver();
 				}
-				//runclock();
-				//aliens::animate();
+				
 				playr::animate();
 				playr::clamp();
 				playr::attack();
 				playr::lifefill(lastlifefill);
 				
 				update_hiscore();
-				
-				
 				
 				Waitdraw();
 				playr::clamp();
@@ -273,8 +245,6 @@ namespace invaders
 			playr::init();
 			shields::init(); //Set up bunker bitmaps.
 			aliens::init(); //Set up temp bitmap for shield collisions. 
-			//aliens::animate();
-			//aliens::spawn();
 		}
 	}
 	
@@ -338,8 +308,8 @@ namespace invaders
 		const int UFO = 39;
 		int ufoclk = 0;
 		
-		
 		bitmap tmpbmp;
+		
 		void init()
 		{
 			tmpbmp = Game->CreateBitmap(16,16);
@@ -414,7 +384,6 @@ namespace invaders
 		{
 			void run()
 			{
-				printf("UFO\n");
 				int clk;
 				this->Misc[ISUFO] = 1;
 				int points = this->InitD[Rand(4)];
@@ -449,8 +418,6 @@ namespace invaders
 							this->Misc[curtile] = 0;
 						}
 					}
-					//Screen->FastTile(2, this->X, this->Y+this->DrawYOffset, temptile, this->CSet, 128 );
-					
 					Waitframe();
 				}
 				if ( this->X > 239 ) //if the player shot it as it first appears
@@ -481,7 +448,6 @@ namespace invaders
 					splat->DrawXOffset = this->DrawXOffset + Rand(-2,2);
 					splat->Y = this->Y;
 					splat->DrawYOffset = this->DrawYOffset + Rand(-2,2);
-					//theinvaders.stepclk += 0.5;
 				}
 				
 				for ( int q = 0; q < SCORE_FRAMES; ++q )
@@ -522,13 +488,8 @@ namespace invaders
 					playfield = Game->LoadBitmapID(RT_SCREEN);
 				}
 				int step = STEP + type2;
-				//invaders::shields::bnkr[0]->Write(0, "bunker_w1.png", true);
-				//invaders::shields::bnkr[1]->Write(0, "bunker_w2.png", true);
-				//invaders::shields::bnkr[2]->Write(0, "bunker_w3.png", true);
-				//invaders::shields::bnkr[3]->Write(0, "bunker_w4.png", true);
 				Waitdraw();
-				//int c1 = Graphics->GetPixel(RT_SCREEN, 78,118)*10000;
-				//printf("c1: %d\n", c1);
+				
 				
 				while(1)
 				{
@@ -543,19 +504,12 @@ namespace invaders
 						const int ENEMY_ERODE_RADIUS = 4;
 						unless(SKIPBUNKERS)
 						{
-							//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+16+2) * 10000;
-							//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+15) * 10000; //penetrates one pixel
-							//printf("ew col is: %d\n", col);
 							bitmap scrn = Game->LoadBitmapID(RT_SCREEN);
-							//printf("scrn pointer is: %f\n", <int>scrn);
-							//int col2 = scrn->GetPixel(this->X+4, this->Y+16+2) * 10000;
 							int col2 = scrn->GetPixel(this->X+8, this->Y+17) * 10000; //penetrates one pixel
-							//printf("scrn col2 is: %f\n", col2);
-							//printf("pixel colour: %f\n", col);
+							
 							if ( col2 >= (177) && col2 < (192) ) //cset 11
 							{
 								bool skip;
-								printf("Bunker collision on colour: %d\n", col2 );
 								if ( this->X+4 < shields::four::minX )
 								{
 									//must be shield 1, 2, or 3
@@ -631,9 +585,6 @@ namespace invaders
 			}
 		}
 		
-		
-		
-		
 		npc script splatted
 		{
 			const int SCORE = 0;
@@ -649,8 +600,6 @@ namespace invaders
 						{
 							unless ( this->Misc[SPLATTED] )
 							{
-								if (DEBUG) printf("Creating splat 2.\n");
-								
 								for ( int q = 0; q < 4; ++q )
 								{
 									lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
@@ -672,13 +621,11 @@ namespace invaders
 						{
 							unless(attackclk)
 							{
-								//if ( Screen->NumEWeapons() < 3 ) 
 								{
 									this->Attack();
 									attackclk = Rand(AttClk_Min,AttClk_Max);
 									if (DEBUG) printf("attackclk is: %d\n", attackclk);
 								}
-								//else --attackclk;
 							}
 							else --attackclk;
 						}
@@ -737,16 +684,9 @@ namespace invaders
 						break;
 					}
 				}
-				//printf("leftmost[q]->X is: %d\n", leftmost->X);
-				//printf("rightmost[q]->X is: %d\n", rightmost->X);
-				//printf("lowest[q]->Y is: %d\n", lowest->Y);
+				
 				for ( int d = 0; d < 48; ++d )
 				{
-					if(swarm[d]->isValid() && !swarm[d]->Misc[ISUFO])
-					{
-						//printf("swarm[%d]->X is: %d\n", d, swarm[d]->X);
-						//printf("swarm[%d]->Y is: %d\n", d, swarm[d]->Y);
-					}
 					if ( swarm[d]->isValid() && swarm[d]->X > rightmost->X && !swarm[d]->Misc[ISUFO]) 
 					{
 						rightmost = swarm[d];
@@ -760,12 +700,9 @@ namespace invaders
 						lowest = swarm[d];
 					}
 				}
-					//printf("rightmost UID: %d\n", rightmost->UID);
-					//printf("leftmost UID: %d\n", leftmost->UID);
-					//printf("lowest UID: %d\n", lowest->UID);
+				
 				while(1)
 				{
-					//printf("ufoclk is: %d\n", ufoclk);
 					if(--ufoclk <= 0)
 					{
 						bool doit = true;
@@ -792,12 +729,10 @@ namespace invaders
 						nextstage();
 						continue;
 					}
-					//splat(swarm);
+					
 					findedges(swarm);
 					move(leader, swarm, invclk);
 					animate(swarm);
-					//attack(swarm);
-					//cleanup(swarm);
 					
 					//Check for Landing
 					if ( lowest->isValid() && lowest->Y >= 152 && !lowest->Misc[ISUFO])
@@ -853,7 +788,6 @@ namespace invaders
 				starttile tiles[4] = { stA, stB, stC, stD };
 				for ( int q = 0; q < NUMINVADERS; ++q )
 				{
-					//printf("spawning invader nuber: %d\n", q);
 					if ( (q) && (!(q%12)) ) //start of a row
 					{
 						++id;
@@ -868,15 +802,7 @@ namespace invaders
 					swarm[q]->HitYOffset = -8; //So that they 'land' at the visible 8th pixel.
 					x += 16; //Increment column.
 					grid[q] = swarm[q]; //Store its pointer into the grid. 
-					//if (DEBUG) printf("swarm[%d] x: %d\n", q, swarm[q]->X);
-					//if (DEBUG) printf("swarm[%d] y: %d\n", q, swarm[q]->Y);
 				}
-				for ( int q = 0; q < 48; ++q )
-				{
-					//if (DEBUG) printf("swarm[%d] x: %d\n", q, swarm[q]->X);
-					//if (DEBUG) printf("swarm[%d] y: %d\n", q, swarm[q]->Y);
-				}
-				
 			}
 			
 			void animate(npc swarm)
@@ -919,17 +845,14 @@ namespace invaders
 			
 			void splat(npc swarm)
 			{
-				
 				for ( int q = 0; q < NUMINVADERS; ++q )
 				{
 					if ( swarm[q]->isValid() && !swarm[q]->Misc[ISUFO] )
 					{
 						if ( swarm[q]->HP < 1 )
 						{
-							//printf("Creating splat 1.\n");
 							unless(swarm[q]->Misc[SPLATTED])
 							{
-								//printf("Creating splat 2.\n");
 								lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
 								splat->HitYOffset = -32768; 
 								splat->HitYOffset = -37768;
@@ -952,13 +875,7 @@ namespace invaders
 				unless ( clk%60 )
 				{
 					Audio->PlaySound(STEPSFX);
-					//printf("leftmost is: %d\n", <int>leftmost);
-					//printf("leftmost->X is: %d\n", leftmost->X);
-					
-					//printf("rightmost is: %d\n", <int>rightmost);
-					//printf("rightmost->X is: %d\n", rightmost->X);
-					
-					if (DEBUG) printf("curstep is: %d\n", curstep);
+					if (DEBUG) printf("stepclk is: %d\n", stepclk);
 				}
 				
 				unless ( clk%(Max(stepclk<<0,1)) )
@@ -967,20 +884,16 @@ namespace invaders
 					{
 						case DIR_LEFT:
 						{
-							//printf("Move left\n");
 							//if on a screen edge
 							if ( leftmost->X <= 1 ) 
 							{
-								//printf("descending\n");
 								descend(swarm);
 								leader->Dir = DIR_RIGHT;
 							}
 							else
 							{
-								//printf("moving\n");
 								//Find the maximum step
 								int maxstep = ( (leftmost->X - curstep) > -1 ) ? curstep : leftmost->X;
-								//printf("maxstep is: %d\n", maxstep);
 								//Move the full step up to the edge of the screen, but not beyond
 								for ( int q = 0; q < NUMINVADERS; ++q )
 								{
@@ -993,20 +906,16 @@ namespace invaders
 						}
 						case DIR_RIGHT:
 						{
-							//printf("Move right\n");
 							//if on a screen edge
 							if ( rightmost->X >= 239 ) 
 							{
-								//printf("descending\n");
 								descend(swarm);
 								leader->Dir = DIR_LEFT;
 							}
 							else
 							{
-								//printf("moving\n");
 								//Find the maximum step
 								int maxstep = ( (rightmost->X + curstep) < 241 ) ? curstep : (240-rightmost->X);
-								//printf("maxstep is: %d\n", maxstep);
 								//Move the full step up to the edge of the screen, but not beyond
 								for ( int q = 0; q < NUMINVADERS; ++q )
 								{
@@ -1038,7 +947,6 @@ namespace invaders
 			void attack(npc swarm)
 			{
 				//count remaining aliens
-				
 				int count = 0; int truecount = 0;
 				npc canfire[NUMINVADERS]; int cf_ix = 0;
 				for ( int q = 0; q < NUMINVADERS; ++q )
@@ -1051,10 +959,7 @@ namespace invaders
 						++cf_ix; //Put all aliens that can fire into a sequential list.
 					}
 				}
-				//for ( int q = 0; q < 48; ++q )
-				//{
-				//	printf("canfire[q] pointer: %d\n", <int>canfire[q]);
-				//}
+				
 				unless(count) { return; } //no aliens left
 				//choose up to six aliens to fire shots
 				count = Clamp(count, 1, 6); //vound the max shots
@@ -1062,8 +967,6 @@ namespace invaders
 				
 				//Get length of truecount array
 				for ( truecount = 0; canfire[truecount]->isValid(); ++truecount );
-				//if (DEBUG) printf("count is: %d\n", count);
-				//if (DEBUG) printf("truecount is: %d\n", truecount);
 				//Select 'count' random invaders to fire.
 				int firelist[48];
 				memset(firelist, -1, 48);
@@ -1100,8 +1003,6 @@ namespace invaders
 		} // end script 
 	} // end namespace
 	
-	
-
 	namespace playr
 	{
 		//int cooldown = 0;
@@ -1150,31 +1051,19 @@ namespace invaders
 				{
 					while(1)
 					{
-						
-						
-						
-						//otherwise complete full move. 
-						
 						//for every pixel of movement, check collisions.
 						for ( int q = 0; q < STEP; ++q )
 						{
 							--this->Y;
 							unless(SKIPBUNKERS)
 							{
-								//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+16+2) * 10000;
-								//int col = Graphics->GetPixel(RT_SCREEN, this->X+4, this->Y+1) * 10000; //penetrates one pixel
-								//printf("ew col is: %d\n", col);
 								bitmap scrn = Game->LoadBitmapID(RT_SCREEN);
-								//printf("scrn pointer is: %f\n", <int>scrn);
 								int col2 = scrn->GetPixel(this->X+8, this->Y+2) * 10000; //penetrates one pixel
-								//printf("scrn col2 is: %f\n", col2);
-								//printf("pixel colour: %f\n", col);
 								const int COL_FIRST = (16*11)+1;
 								const int COL_LAST = (16*12)+1;
 								if ( col2 >= (COL_FIRST) && col2 < (COL_LAST) ) //cset 11
 								{
 									bool skip;
-									printf("LWeapon Bunker collision on colour: %d\n", col2);
 									if ( this->X+8 <= shields::four::minX )
 									{
 										//must be shield 1, 2, or 3
@@ -1183,57 +1072,21 @@ namespace invaders
 											//must be shield 1, 2
 											if ( this->X+8 <= shields::two::minX )
 											{
-												//must be shield 1
-												//int xpos = this->X+8;
-												//if ( DEBUG ) printf("LW1 xpos: %d\n", xpos);
-												
-												
-												//left edge of bunker
-												//int leftpos = shields::one::minX;
-												//printf("LW1 bunker leftpos: %d\n",leftpos);
-												//x position of weapons
-												//int wx = this->X+8;
-												//if ( DEBUG ) printf("LW1 bunker wx: %d\n",wx);
-												//difference
-												//int diff = Abs(wx-leftpos);
-												//if ( DEBUG ) printf("LW1 bunker diff: %d\n",diff);
-									
-												//position is left edge + difference?
-												//int edge = leftpos+diff;
-												//if ( DEBUG ) printf("LW1 bunker edge: %d\n",edge);
-												
-												
-												
-												//we are inside the ffc by this much
-												//int edge = shields::one::minX-xpos;
 												int hitpos = (this->X+8) - shields::one::minX;
-												if ( DEBUG ) printf("LW1 bunker HITPOS: %d\n",hitpos);
-												
 												int impact = (this->Y) - shields::one::minY + 2; //Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
-											
-												//int impact = Abs(118-(this->Y))+8; //the depth of the impact
-												if ( DEBUG ) printf("LW SHIELD 1: impact at y: %d\n", impact);
-													//edge is the left edge of the bitmap for ffc[1]
-												
+												//edge is the left edge of the bitmap for ffc[1]
 												invaders::shields::bnkr[0]->Circle(1, hitpos, impact, SHOT_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 												this->DeadState = WDS_DEAD;
 												Quit();
-													
-												
-												
 											}
 											else
 											{
 												
 												int hitpos = (this->X+8) - shields::two::minX;
 												int impact = Abs(118-(this->Y))+8; //the depth of the impact
-												
 												invaders::shields::bnkr[1]->Circle(1, hitpos, impact, SHOT_ERODE_RADIUS, 0, 1, 0,0,0, true, 128);
 												this->DeadState = WDS_DEAD;
-										
 												Quit();
-													
-												
 											}
 											
 										}
