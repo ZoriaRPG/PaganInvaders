@@ -1,5 +1,5 @@
 // Invaders
-// v0.1.5
+// v0.1.6
 // 2nd April, 2020
 // ZoriaRPG
 //
@@ -30,6 +30,7 @@
 * 	- Added UFO. 
 * 0.1.5 - Increased playr shot speed by +50% and increased minimum enemy attack clk slightly. 
 * 	- Game Over now suspends the game.
+* 0.1.6 - Invaders now descent 8px, not 16px. Animated UFO.
 */
 
 /*TODO
@@ -246,7 +247,7 @@ namespace invaders
 		int hitedge = 0;
 		const int COOLDOWN_TIME = 15;
 		enum adir { dLeft, dRight, dLast };
-		const int DESCEND_Y_PIXELS = 16;
+		const int DESCEND_Y_PIXELS = 8;
 		const int FIRECLK = 1;
 		const int FIRECLK_MIN = 100;
 		const int FIRECLK_MAX = 400;
@@ -309,6 +310,7 @@ namespace invaders
 			{
 				int clk;
 				this->DrawYOffset = -16;
+				this->ScriptTile = this->OriginalTile;
 				while(1)
 				{
 					++clk;
@@ -344,6 +346,20 @@ namespace invaders
 						printf("UFO has left the building.\n");
 						this->HP = HP_SILENT;
 						ufoclk = Rand((60), (4*60));
+					}
+					++this->Misc[aclk]; 
+					unless (( this->Misc[aclk]%16 ))
+					{
+						if ( this->Misc[curtile] < 7 )
+						{
+							++this->ScriptTile;
+							++this->Misc[curtile];
+						}
+						else
+						{
+							this->ScriptTile = this->OriginalTile;
+							this->Misc[curtile] = 0;
+						}
 					}
 					Waitframe();
 				}
