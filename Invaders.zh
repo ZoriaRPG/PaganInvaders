@@ -1,5 +1,5 @@
 // Invaders
-// v0.08
+// v0.1.2
 // 30th March, 2020
 // ZoriaRPG
 //
@@ -20,6 +20,10 @@
 * 	- Added additional stages. Show 'R' (round) indicator. 
 * 0.0.8 - Some clamping to force step to stay in bounds. 
 * 0.1.0 - Refactored aliens.
+* 0.1.1 - Refactored attacking and splatting.
+* 0.1.2 - Backported to Alpha 51 due to Rob's parser improvements bricking
+* 	  npc pointers in a for loop. 
+* 	  Worked on new movemnt system for enemies. 
 */
 
 /*TODO
@@ -172,7 +176,7 @@ namespace invaders
 				*/
 				unless(Screen->NumNPCs() > 1)
 				{
-					nextstage();
+					//nextstage();
 				}
 				Waitdraw();
 				playr::clamp();
@@ -234,7 +238,7 @@ namespace invaders
 			for ( int q = 0; q < theinvaders.NUMINVADERS; ++q ) 
 			{
 				grid[q] = NULL;
-				theinvaders.swarm[theinvaders.NUMINVADERS] = NULL;
+				theinvaders.swarm[q] = NULL;
 			}
 			theinvaders.lowest = NULL;
 			theinvaders.leftmost = NULL;
@@ -284,6 +288,63 @@ namespace invaders
 		
 		const int STEPSFX = 3;
 		int maxstep;
+		const int SPLATTED = 6;
+		int AttClk_Min = 200; //not const
+		int AttClk_Max = 1000; //not const
+		
+		npc script splatted
+		{
+			const int SCORE = 0;
+			void run()
+			{
+				int attackclk = Rand(AttClk_Min,AttClk_Max);
+				while(1)
+				{
+					if ( this->isValid() )
+					{
+						if ( this->HP < 1 )
+						{
+							unless ( this->Misc[SPLATTED] )
+							{
+								printf("Creating splat 2.\n");
+								
+								for ( int q = 0; q < 4; ++q )
+								{
+									lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
+									splat->HitYOffset = -32768; 
+									splat->HitYOffset = -37768;
+									splat->UseSprite(SPLATSPRITE);
+									
+									splat->X = this->X+this->DrawXOffset + Rand(-2,2);
+									splat->Y = this->Y+this->DrawYOffset + Rand(-2,2);
+									theinvaders.curstep += 0.1;
+								}
+								
+								Game->Counter[CR_RUPEES] += this->InitD[SCORE];
+								this->Misc[SPLATTED] = 1;
+							}
+							
+						}
+						else
+						{
+							unless(attackclk)
+							{
+								//if ( Screen->NumEWeapons() < 3 ) 
+								{
+									this->Attack();
+									attackclk = Rand(AttClk_Min,AttClk_Max);
+									printf("attackclk is: %d\n", attackclk);
+								}
+								//else --attackclk;
+							}
+							else --attackclk;
+						}
+					}
+					Waitdraw();
+					Waitframe();
+				}
+			}
+		}
 		
 		npc script theinvaders
 		{
@@ -303,50 +364,74 @@ namespace invaders
 				
 				int lx, ly;
 				int invclk = 0;
+				
 				spawn(swarm);
+				
+				Waitframes(6);
+				
+				//Find the edges
+				for ( int a = 0; a < 48; ++a )
+				{
+					unless ( rightmost->isValid() ) 
+					{
+						rightmost = swarm[a];
+						break;
+					}
+				}
+				for ( int b = 0; b < 48; ++b )
+				{
+					unless ( leftmost->isValid() ) 
+					{
+						leftmost = swarm[b];
+						break;
+					}
+				}
+				for ( int c = 0; c < 48; ++c )
+				{
+					unless ( lowest->isValid() ) 
+					{
+						lowest = swarm[c];
+						break;
+					}
+				}
+				//printf("leftmost[q]->X is: %d\n", leftmost->X);
+				//printf("rightmost[q]->X is: %d\n", rightmost->X);
+				//printf("lowest[q]->Y is: %d\n", lowest->Y);
+				for ( int d = 0; d < 48; ++d )
+				{
+					if(swarm[d]->isValid())
+					{
+						//printf("swarm[%d]->X is: %d\n", d, swarm[d]->X);
+						//printf("swarm[%d]->Y is: %d\n", d, swarm[d]->Y);
+					}
+					if ( swarm[d]->isValid() && swarm[d]->X > rightmost->X ) 
+					{
+						rightmost = swarm[d];
+					}
+					if ( swarm[d]->isValid() && swarm[d]->X < leftmost->X )
+					{
+						leftmost = swarm[d];
+					}
+					if ( swarm[d]->isValid() && swarm[d]->Y > lowest->Y )
+					{
+						lowest = swarm[d];
+					}
+				}
+					//printf("rightmost UID: %d\n", rightmost->UID);
+					//printf("leftmost UID: %d\n", leftmost->UID);
+					//printf("lowest UID: %d\n", lowest->UID);
 				while(1)
 				{
-					for ( int q = 0; q < NUMINVADERS; ++q )
-					{
-						//If moving right, find the rightmost invader.
-						if ( this->Dir == DIR_RIGHT )
-						{
-							if ( swarm[q]->isValid() )
-							{
-								if ( swarm[q]->X > (( rightmost->isValid() ) ? rightmost->X : -1) )
-								{
-									rightmost = swarm[q];
-								}
-							}
-						}
-						//If moving left, find the leftmost invader.
-						else
-						{
-							if ( swarm[q]->isValid() )
-							{
-								if ( swarm[q]->X < (( leftmost->isValid() ) ? leftmost->X : 300) )
-								{
-									leftmost = swarm[q];
-								}
-							}
-						}
-						
-						
-						//If moving down, find the lowest Y invader.
-						if ( swarm[q]->isValid() )
-						{
-							if ( swarm[q]->Y > (( lowest->isValid() ) ? lowest->Y : 0) )
-							{
-								lowest = swarm[q];
-							}
-						}
-					}
 					
-					splat(swarm);
+					
+					
+					
+					//splat(swarm);
+					findedges(swarm);
 					move(leader, swarm, invclk);
 					animate(swarm);
-					attack(swarm);
-					cleanup(swarm);
+					//attack(swarm);
+					//cleanup(swarm);
 					
 					//Check for Landing
 					if ( lowest->Y >= 152 )
@@ -357,6 +442,42 @@ namespace invaders
 					++invclk;
 					Waitframe();
 				}
+				
+			}
+			void findedges(npc swarm)
+			{
+				//Find the edges
+				for ( int q = 0; q < 48; ++q )
+				{
+					if ( rightmost->isValid() ) break;
+					rightmost = swarm[q];
+				}
+				for ( int q = 0; q < 48; ++q )
+				{
+					if ( leftmost->isValid() ) break;
+					leftmost = swarm[q];
+				}
+				for ( int q = 0; q < 48; ++q )
+				{
+					if ( lowest->isValid() ) break;
+					lowest = swarm[q];
+				}
+				for ( int q = 0; q < 48; ++q )
+				{
+					unless ( swarm[q]->isValid() ) continue;
+					if ( swarm[q]->X > rightmost->X ) 
+					{
+						rightmost = swarm[q];
+					}
+					if ( swarm[q]->X < leftmost->X )
+					{
+						leftmost = swarm[q];
+					}
+					if ( swarm[q]->Y > lowest->X )
+					{
+						lowest = swarm[q];
+					}
+				}
 			}
 			void spawn(npc swarm)
 			{
@@ -365,21 +486,29 @@ namespace invaders
 				starttile tiles[4] = { stA, stB, stC, stD };
 				for ( int q = 0; q < NUMINVADERS; ++q )
 				{
+					//printf("spawning invader nuber: %d\n", q);
 					if ( (q) && (!(q%12)) ) //start of a row
 					{
 						++id;
 						y += 16;
 						x = STARTX;
 					}
-					swarm[q]->ScriptTile = swarm[q]->OriginalTile;
+					
 					swarm[q] = Screen->CreateNPC(id);
+					swarm[q]->ScriptTile = swarm[q]->OriginalTile;
 					swarm[q]->X = x; swarm[q]->Y = y; //Position on the grid.
 					swarm[q]->DrawYOffset = -8;
 					swarm[q]->HitYOffset = -8; //So that they 'land' at the visible 8th pixel.
 					x += 16; //Increment column.
-					grid[q] = swarm[q]; //Stor its pointer into the grid. 
+					grid[q] = swarm[q]; //Store its pointer into the grid. 
+					printf("swarm[%d] x: %d\n", q, swarm[q]->X);
+					printf("swarm[%d] y: %d\n", q, swarm[q]->Y);
 				}
-				
+				for ( int q = 0; q < 48; ++q )
+				{
+					printf("swarm[%d] x: %d\n", q, swarm[q]->X);
+					printf("swarm[%d] y: %d\n", q, swarm[q]->Y);
+				}
 				
 			}
 			
@@ -409,24 +538,30 @@ namespace invaders
 				
 			}
 			
-			const int SPLATTED = 6;
+			
 			void splat(npc swarm)
 			{
+				
 				for ( int q = 0; q < NUMINVADERS; ++q )
 				{
-					if ( swarm[q]->isValid() && swarm[q]->HP < 1 )
+					if ( swarm[q]->isValid() )
 					{
-						unless(swarm[q]->Misc[SPLATTED])
+						if ( swarm[q]->HP < 1 )
 						{
-							lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
-							splat->HitYOffset = -32768; 
-							splat->HitYOffset = -37768;
-							splat->UseSprite(SPLATSPRITE);
-							
-							splat->X = swarm[q]->X;
-							splat->Y = swarm[q]->Y;
-							Game->Counter[CR_RUPEES] += swarm[q]->Y;
-							swarm[q]->Misc[SPLATTED] = 1;
+							printf("Creating splat 1.\n");
+							unless(swarm[q]->Misc[SPLATTED])
+							{
+								printf("Creating splat 2.\n");
+								lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
+								splat->HitYOffset = -32768; 
+								splat->HitYOffset = -37768;
+								splat->UseSprite(SPLATSPRITE);
+								
+								splat->X = swarm[q]->X;
+								splat->Y = swarm[q]->Y;
+								Game->Counter[CR_RUPEES] += swarm[q]->Y;
+								swarm[q]->Misc[SPLATTED] = 1;
+							}
 						}
 					}
 				}
@@ -437,23 +572,37 @@ namespace invaders
 				unless ( clk%60 )
 				{
 					Audio->PlaySound(STEPSFX);
+					printf("leftmost is: %d\n", <int>leftmost);
+					printf("leftmost->X is: %d\n", leftmost->X);
+					
+					printf("rightmost is: %d\n", <int>rightmost);
+					printf("rightmost->X is: %d\n", rightmost->X);
+					
+					printf("curstep is: %d\n", curstep);
+					
+					
 					switch(leader->Dir)
 					{
 						case DIR_LEFT:
 						{
+							printf("Move left\n");
 							//if on a screen edge
 							if ( leftmost->X <= 1 ) 
 							{
+								printf("descending\n");
 								descend(swarm);
 								leader->Dir = DIR_RIGHT;
 							}
 							else
 							{
+								printf("moving\n");
 								//Find the maximum step
-								int maxstep = ( leftmost->X - curstep > -1 ) ? maxstep : leftmost->X;
+								int maxstep = ( (leftmost->X - curstep) > -1 ) ? curstep : leftmost->X;
+								printf("maxstep is: %d\n", maxstep);
 								//Move the full step up to the edge of the screen, but not beyond
 								for ( int q = 0; q < NUMINVADERS; ++q )
 								{
+									unless(swarm[q]->isValid()) { continue; }
 									swarm[q]->X -= maxstep;
 								}
 							}
@@ -461,19 +610,24 @@ namespace invaders
 						}
 						case DIR_RIGHT:
 						{
+							printf("Move right\n");
 							//if on a screen edge
-							if ( leftmost->X >= 239 ) 
+							if ( rightmost->X >= 239 ) 
 							{
+								printf("descending\n");
 								descend(swarm);
 								leader->Dir = DIR_LEFT;
 							}
 							else
 							{
+								printf("moving\n");
 								//Find the maximum step
-								int maxstep = ( rightmost->X + curstep < 241 ) ? maxstep : (240-rightmost->X);
+								int maxstep = ( (rightmost->X + curstep) < 241 ) ? curstep : (240-rightmost->X);
+								printf("maxstep is: %d\n", maxstep);
 								//Move the full step up to the edge of the screen, but not beyond
 								for ( int q = 0; q < NUMINVADERS; ++q )
 								{
+									unless(swarm[q]->isValid()) { continue; }
 									swarm[q]->X += maxstep;
 								}
 							}
@@ -504,7 +658,7 @@ namespace invaders
 				npc canfire[NUMINVADERS]; int cf_ix = 0;
 				for ( int q = 0; q < NUMINVADERS; ++q )
 				{
-					if ( swarm[q] ->isValid() && swarm[q]->HP > 0 )
+					if ( swarm[q]->isValid() )
 					{
 						++count;
 						//++truecount;
@@ -512,25 +666,27 @@ namespace invaders
 						++cf_ix; //Put all aliens that can fire into a sequential list.
 					}
 				}
+				//for ( int q = 0; q < 48; ++q )
+				//{
+				//	printf("canfire[q] pointer: %d\n", <int>canfire[q]);
+				//}
 				unless(count) { return; } //no aliens left
 				//choose up to six aliens to fire shots
 				count = Clamp(count, 1, 6); //vound the max shots
 				count = Rand(count)+1; //choose a random number of shots, min 1
 				
 				//Get length of truecount array
-				for ( int truecount = 0; canfire[truecount]->isValid(); ++truecount );
+				for ( truecount = 0; canfire[truecount]->isValid(); ++truecount );
+				printf("count is: %d\n", count);
+				printf("truecount is: %d\n", truecount);
+				//Select 'count' random invaders to fire.
+				int firelist[48];
+				memset(firelist, -1, 48);
 				
-				//Select 'count' random invaders to fire. 
-				do{
-					int firepos = Rand(0, truecount);
-					unless ( canfire[firepos]->Misc[FIRING] ) //unless it is firing this time
-					{
-						canfire[firepos]->Attack();
-						canfire[firepos]->Misc[FIRING] = 1;
-						--count;
-					}
-						
-				} while (count); //Until count is 0.
+				for ( int f = 0; canfire[f]->isValid(); ++f )
+				{
+					printf("canfire[f] UID is: %d\n", canfire[f]->UID);
+				}
 				
 				/* would be nice if we allowed variable arrays locally
 				npc positions[truecount];
@@ -553,8 +709,10 @@ namespace invaders
 					}
 				}
 			}
-		} // end run 
-	} // end script
+		} // end script 
+	} // end namespace
+	
+	
 
 	namespace playr
 	{
