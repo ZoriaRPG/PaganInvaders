@@ -1,0 +1,96 @@
+// Invaders
+// v0.02
+// 29th March, 2020
+// ZoriaRPG
+//
+/*
+* Change History
+* 0.0.1 - Project Begins
+* 0.0.2 - Fixed initial compile. 
+*/
+namespace invaders
+{
+	namespace aliens
+	{
+		enum adir { dLeft, dRight, dLast };
+		const int DESCEND_Y_PIXELS = 12;
+		const int FIRECLK = 1;
+		const int FIRECLK_MIN = 100;
+		const int FIRECLK_MAX = 400;
+		
+		
+		adir dir = dRight; //The direction of their march.
+		
+		void changedir()
+		{
+			dir = ((dir)?dRight:dLeft);
+		}
+		void descend(npc n)
+		{
+			n->Y -= DESCEND_Y_PIXELS;
+		}
+		eweapon runclock(npc n)
+		{
+			//May need to adjust the ret type here.
+			
+			//Check the individual firing clock of the alien.
+			int clk = n->Misc[FIRECLK];
+			unless(clk) 
+			{
+				n->Misc[FIRECLK] = Rand(FIRECLK_MIN,FIRECLK_MAX);
+				n->Attack();
+				//! The weapon script handles the enemy missile
+			}
+			else
+			{
+				--n->Misc[FIRECLK]; //Cooldown
+			}
+		}
+		/* 
+			Returns if the aliens are on the edge of the screen, based on their direction.
+		*/
+		bool onedge(npc n)
+		{
+			switch(dir)
+			{
+				case dLeft:
+				{
+					if ( n->X < 1 ) 
+					{
+						//Change direction
+						changedir();  //global
+						//Descend
+						descend(n);
+						return true;
+					}
+				}
+				case dRight:
+				{
+					if ( n->X > 239 ) 
+					{
+						//Change direction
+						changedir();  //global
+						//Descend
+						descend(n);
+						return true;
+					}
+				}
+				default: return false;
+			}
+			return false;
+		}
+	}
+
+	namespace playr
+	{
+		// Player movement and firing.
+		
+		void animate()
+		{
+			//Player animation is 8 tiles, at a frate of 16. Every 30 frames we cycle all 8 tiles. 
+			//! Is that correct?
+			//
+		}
+		
+	}
+}
