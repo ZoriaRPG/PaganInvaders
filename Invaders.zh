@@ -1,5 +1,5 @@
 // Invaders
-// v0.06
+// v0.08
 // 30th March, 2020
 // ZoriaRPG
 //
@@ -16,6 +16,9 @@
 * 	- Fixed bugs with enemies not attacking. 
 * 0.05  - Game now ends on landing. Enemy missiles now damage the player. 
 * 0.06	- Fixed some visual bugs, and added splat effect. 
+* 0.07  - Added scoring. Disabled the active subscreen.
+* 	- Added additional stages. Show 'R' (round) indicator. 
+* 0.08  - Some clamping to force step to stay in bounds. 
 */
 
 int ofs = 0;
@@ -73,7 +76,12 @@ namespace invaders
 		++alienclk;
 		if ( alienclk > 59 ) alienclk = 0;
 	}
-	
+	void nextstage()
+	{
+		//Audio->PlaySound(5);
+		++Game->Counter[CR_KEYS];
+		aliens::spawn();
+	}
 	global script inv
 	{
 		void run()
@@ -120,6 +128,10 @@ namespace invaders
 						}
 					}
 					aliens::hitedge = 0;
+				}
+				unless(Screen->NumNPCs())
+				{
+					nextstage();
 				}
 				Waitdraw();
 				playr::clamp();
@@ -353,7 +365,7 @@ namespace invaders
 		}
 		
 		const int STEPSFX = 3;
-		
+		int maxstep;
 		npc script alien
 		{
 			void run()
@@ -379,8 +391,16 @@ namespace invaders
 							splat->X = this->X;
 							splat->Y = this->Y;
 							this->DrawYOffset = -32768;
-							aliens::step += 0.50;
+							switch(Screen->NumNPCs())
+							{
+								case 24...49: aliens::step = 8; break;
+								case 19...23: aliens::step = 16; break;
+								case 1...8: aliens::step = 32; break;
+								default: break;
+							}
+							bool a = onedge(this);
 							printf("aliens::step: %d\n", aliens::step);
+							Game->Counter[CR_RUPEES] += this->Y;
 							splatted = 1;
 						}
 						
@@ -417,8 +437,17 @@ namespace invaders
 								splat->X = this->X;
 								splat->Y = this->Y;
 								this->DrawYOffset = -32768;
-								aliens::step += 0.50;
+								switch(Screen->NumNPCs())
+								{
+									case 24...49: aliens::step = 8; break;
+									case 19...23: aliens::step = 16; break;
+									case 1...8: aliens::step = 32; break;
+									default: break;
+								}
+								//aliens::step += 0.50;
+								bool a = onedge(this);
 								printf("aliens::step: %d\n", aliens::step);
+								Game->Counter[CR_RUPEES] += this->Y;
 								splatted = 1;
 							}
 							
@@ -443,7 +472,8 @@ namespace invaders
 					for ( int q = 0; q < ((aliens::step)<<0); ++q )
 					{
 						//for each pixel of their step...
-						tmpx = ((this->Dir == DIR_RIGHT)?(this->X+q):(this->X-q));
+						tmpx = Clamp(((this->Dir == DIR_RIGHT)?(this->X+q):(this->X-q)), 0, 240);
+						bool a = onedge(this);
 						//Check for collisions
 						
 						//Check for touching the shields
@@ -509,12 +539,38 @@ namespace invaders
 					{
 						case DIR_LEFT:
 						{
-							this->X-=step;
+							maxstep = 0;
+							for ( int q = 0; q < step; ++q )
+							{
+								++maxstep;
+								if (( this->X-maxstep ) < 0 ) 
+								{
+									--maxstep;
+									break;
+								}
+							}
+							
+								
+							this->X = this->X-maxstep;
+							
 							break;
 						}
 						case DIR_RIGHT:
 						{
-							this->X+=step;
+							maxstep = 0;
+							for ( int q = 0; q < step; ++q )
+							{
+								++maxstep;
+								if (( this->X+maxstep ) > 240 ) 
+								{
+									--maxstep;
+									break;
+								}
+							}
+							
+								
+							this->X = this->X+maxstep;
+							
 							break;
 						}
 						
@@ -634,6 +690,8 @@ namespace invaders
 
 		void init()
 		{
+			Game->Counter[CR_KEYS] = 1;
+			Game->DisableActiveSubscreen = true;
 			Player->ScriptTile = 78060;
 		}
 		
