@@ -1,7 +1,7 @@
 #include "std.zh"
 
 // Invaders
-// v0.5.2
+// v0.5.3
 // 12th April, 2020
 // ZoriaRPG
 //
@@ -51,6 +51,7 @@
 * 0.5.0 - Added opening crawl and intro tune.
 * 0.5.1 - Cleanup of comments and logging.
 * 0.5.2 - Remove call to bitmap->Write and add Waitframe prior to blit call.
+* 0.5.3 - End extra sounds during GameOver and WinGame.
 */
 
 /*TODO
@@ -259,7 +260,7 @@ namespace invaders
 		Game->Suspend[susptLWEAPONSCRIPTS] = true;
 		Game->Suspend[susptEWEAPONSCRIPTS] = true;
 		Game->Suspend[susptNPCSCRIPTS] = true;
-		for ( int q = 0; q < 12; ++q ) 
+		for ( int q = 0; q < 20; ++q ) 
 		{
 			Audio->EndSound(q);
 		}
@@ -281,7 +282,7 @@ namespace invaders
 		Game->Suspend[susptLWEAPONSCRIPTS] = true;
 		Game->Suspend[susptEWEAPONSCRIPTS] = true;
 		Game->Suspend[susptNPCSCRIPTS] = true;
-		for ( int q = 0; q < 12; ++q ) 
+		for ( int q = 0; q < 20; ++q ) 
 		{
 			Audio->EndSound(q);
 		}
