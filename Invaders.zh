@@ -1,5 +1,5 @@
 // Invaders
-// v0.1.6
+// v0.1.7
 // 2nd April, 2020
 // ZoriaRPG
 //
@@ -30,7 +30,10 @@
 * 	- Added UFO. 
 * 0.1.5 - Increased playr shot speed by +50% and increased minimum enemy attack clk slightly. 
 * 	- Game Over now suspends the game.
-* 0.1.6 - Invaders now descent 8px, not 16px. Animated UFO.
+* 0.1.6 - Invaders now descent 8px, not 16px.
+* 0.1.7 - Fixed UFO collision and points. Adjusted the way that invader step is calculated. 
+* 	- Slowed UFO speed a bit. Added 20 frames of grace in invader descent phase. 
+* 	- Fixed a bug where X/Y on the swarm pointer were accessed during nextstage() prior to being respawned. 
 */
 
 /*TODO
@@ -39,6 +42,8 @@ Add UFO score. This could be drawn with DrawInt or with a sparkle sprite.
 
 Fix GetPixel in the source so that it returns the correct values for the screen.
 	Finish bunkers.
+	
+Fix UFO not dying.
 
 */
 
@@ -247,7 +252,7 @@ namespace invaders
 		int hitedge = 0;
 		const int COOLDOWN_TIME = 15;
 		enum adir { dLeft, dRight, dLast };
-		const int DESCEND_Y_PIXELS = 8;
+		const int DESCEND_Y_PIXELS = 4;
 		const int FIRECLK = 1;
 		const int FIRECLK_MIN = 100;
 		const int FIRECLK_MAX = 400;
@@ -269,7 +274,7 @@ namespace invaders
 		
 		enum starttile { stA = 78000, stB = 78020, stC = 78040, stD = 78000 }; //unintentional Pun. 
 		
-		const int INITIALSTEP = 8; //pixels per second!, not frame
+		const int INITIALSTEP = 1; //pixels per second!, not frame
 		int step = INITIALSTEP; //This increases as enemies die.
 		
 		void wipegrid()
@@ -310,32 +315,34 @@ namespace invaders
 			{
 				int clk;
 				this->DrawYOffset = -16;
+				this->HitYOffset = 8;
+				this->Y += 8;
 				this->ScriptTile = this->OriginalTile;
 				while(1)
 				{
 					++clk;
 					unless((clk%2))
 					{
-						this->X-=4; //Move left.
+						this->X-=3; //Move left.
 					}
-					if ( this->HP < 1 )
+					if ( this->HP < 1 && this->X > -16 )
 					{
 						unless ( this->Misc[SPLATTED] )
 						{
+							printf("Splatted UFO\n");
 							if (DEBUG) printf("Creating splat 2.\n");
 							
 							for ( int q = 0; q < 4; ++q )
 							{
 								lweapon splat = Screen->CreateLWeapon(LW_SPARKLE);
 								splat->HitYOffset = -32768; 
-								splat->HitYOffset = -37768;
+	
 								splat->UseSprite(SPLATSPRITE);
-								
 								splat->X = this->X+this->DrawXOffset + Rand(-2,2);
 								splat->Y = this->Y+this->DrawYOffset + Rand(-2,2);
-								theinvaders.curstep += 0.1;
+								//theinvaders.stepclk += 0.5;
 							}
-							
+							this->DrawYOffset = -32768;
 							Game->Counter[CR_RUPEES] += this->InitD[Rand(4)];
 							this->Misc[SPLATTED] = 1;
 						}
@@ -343,7 +350,7 @@ namespace invaders
 					++ufoclk; //Don't let it fall below 0 so that more than one canna spawn.
 					if ( this->X < -20 )
 					{
-						printf("UFO has left the building.\n");
+						//printf("UFO has left the building.\n");
 						this->HP = HP_SILENT;
 						ufoclk = Rand((60), (4*60));
 					}
@@ -567,7 +574,7 @@ namespace invaders
 									
 									splat->X = this->X+this->DrawXOffset + Rand(-2,2);
 									splat->Y = this->Y+this->DrawYOffset + Rand(-2,2);
-									theinvaders.curstep += 0.1;
+									theinvaders.stepclk -= 0.25;
 								}
 								
 								Game->Counter[CR_RUPEES] += this->InitD[SCORE];
@@ -680,9 +687,11 @@ namespace invaders
 					}
 					
 					
-					if(Screen->NumNPCs() < 2)
+					unless(numInvaders())
 					{
+						while(Screen->NumNPCs() > 1 ) Waitframe(); //1 is always present
 						nextstage();
+						continue;
 					}
 					//splat(swarm);
 					findedges(swarm);
@@ -692,7 +701,7 @@ namespace invaders
 					//cleanup(swarm);
 					
 					//Check for Landing
-					if ( lowest->Y >= 152 )
+					if ( lowest->isValid() && lowest->Y >= 152 )
 					{
 						gameover = 1;
 					}
@@ -796,6 +805,17 @@ namespace invaders
 				
 			}
 			
+			int numInvaders()
+			{
+				int ret;
+				for ( int q = Screen->NumNPCs(); q > 0; --q )
+				{
+					npc n = Screen->LoadNPC(q);
+					if ( n->ID >= FIRST && n->ID <= FIRST+3 ) ++ret;
+				}
+				return ret;
+			}
+			
 			
 			void splat(npc swarm)
 			{
@@ -825,6 +845,8 @@ namespace invaders
 				}
 			}
 			
+			int stepclk = 20;
+			
 			void move(npc leader, npc swarm, int clk)
 			{
 				unless ( clk%60 )
@@ -837,8 +859,10 @@ namespace invaders
 					//printf("rightmost->X is: %d\n", rightmost->X);
 					
 					if (DEBUG) printf("curstep is: %d\n", curstep);
-					
-					
+				}
+				
+				unless ( clk%(Max(stepclk<<0,1)) )
+				{
 					switch(leader->Dir)
 					{
 						case DIR_LEFT:
@@ -906,6 +930,7 @@ namespace invaders
 						swarm[q]->Y += DESCEND_Y_PIXELS;
 					}
 				}
+				Waitframes(20); //grace
 			}
 			const int FIRING = 7; //Misc index to mark that an npc is firing. 
 			void attack(npc swarm)
@@ -984,7 +1009,7 @@ namespace invaders
 			int clk, step, cool, x, y;
 			const int SPRITE = 63;
 			const int STEP = 3; //pixels per frame
-			const int TYPE = LW_ARROW;
+			const int TYPE = LW_SCRIPT1;
 			const int XOFS = 0; 
 			const int YOFS = -16;
 			//missile bounding box. 
