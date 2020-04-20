@@ -1,8 +1,7 @@
 #include "std.zh"
-
 // Invaders
-// v0.5.3
-// 12th April, 2020
+// v0.6.0
+// 20th April, 2020
 // ZoriaRPG
 //
 /*
@@ -52,6 +51,10 @@
 * 0.5.1 - Cleanup of comments and logging.
 * 0.5.2 - Remove call to bitmap->Write and add Waitframe prior to blit call.
 * 0.5.3 - End extra sounds during GameOver and WinGame.
+* 0.6.0 - Added difficulty settings and menu. Regenerate shields based on difficulty level.
+* 	- Erase bunkers as invaders touch them. Next stage reduces aliens step clock based on difficulty. 
+* 	- Tightened hitbox around player weapons; and modified their speed, which is further affected by difficulty. 
+* 	- UFO is slightly slower on NORMAL difficulty. Adjusted the area of UFO extra life, based on difficulty. 
 */
 
 /*TODO
@@ -75,6 +78,7 @@ namespace invaders
 	int alienclk; //one second clock
 	int hasturned = 0;
 	int gameover = 0;
+	int difficulty = 1;
 	const int SPLATSPRITE = 34; 
 	const bool SKIPBUNKERS = 0;
 	const bool DEBUG = 0;
@@ -100,6 +104,13 @@ namespace invaders
 				bnkr[q] = Game->CreateBitmap(3*16, 2*16);
 				bnkr[q]->DrawTile(0, 0, 0, TILE, 3, 2, CSET, -1, -1, 0, 0, 0, 0, true, 128);
 				
+			}
+		}
+		void regenerate()
+		{
+			for ( int q = 0; q < 4; ++q )
+			{
+				bnkr[q]->DrawTile(0, 0, 0, TILE, 3, 2, CSET, -1, -1, 0, 0, 0, 0, true, 128);
 			}
 		}
 		const int HEIGHT = 32;
@@ -169,8 +180,13 @@ namespace invaders
 	}
 	void nextstage()
 	{
+		aliens::theinvaders.stepclk = 20 - difficulty;
+		aliens::theinvaders.invclk = 0 + (((difficulty-1)*0.5)<<0);
 		Audio->PlaySound(4);
 		++Game->Counter[CR_ROUND];
+		int result = ( ((Game->Counter[CR_ROUND])%difficulty) );
+		printf("shield modulus result: %d\n", result);
+		unless ( ((Game->Counter[CR_ROUND])%difficulty) ) shields::regenerate();
 		if ( Game->Counter[CR_ROUND] > 255 ) WinGame();
 		aliens::theinvaders.spawn(aliens::theinvaders.swarm);
 	}
@@ -248,6 +264,7 @@ namespace invaders
 			playr::init();
 			shields::init(); //Set up bunker bitmaps.
 			aliens::init(); //Set up temp bitmap for shield collisions. 
+			printf("Game Difficulty: %d\n", difficulty);
 		}
 	}
 	
@@ -390,15 +407,25 @@ namespace invaders
 				int clk;
 				this->Misc[ISUFO] = 1;
 				int points = this->InitD[Rand(4)];
-				this->DrawYOffset = -16;
+				this->DrawYOffset = -18;
+				this->HitHeight = 32;
 				this->HitYOffset = 0;
 				this->Y += 8;
 				this->ScriptTile = this->OriginalTile;
+				int stpclk = (4 - difficulty); 
+				int ufostep;
+				switch(difficulty)
+				{
+					case 1: ufostep = 1; break;
+					case 2: 
+					case 3:
+						ufostep = 2; break;
+				}
 				while(this->HP > 0)
 				{
-					unless((clk%2))
+					unless((clk%stpclk))
 					{
-						this->X-=3; //Move left.
+						this->X -= ufostep; //Move left.
 					}
 					++ufoclk; //Don't let it fall below 0 so that more than one canna spawn.
 					if ( this->X < -20 )
@@ -423,7 +450,7 @@ namespace invaders
 					}
 					Waitframe();
 				}
-				if ( this->X > 239 ) //if the player shot it as it first appears
+				if ( this->X > (200 + (difficulty*10)) ) //if the player shot it as it first appears
 				{
 					Audio->PlaySound(SFX_LIFEFILL);
 					Game->DCounter[CR_LIFE] += playr::HP_PER_LIFE_FILL;
@@ -627,7 +654,7 @@ namespace invaders
 								{
 									this->Attack();
 									attackclk = Rand(AttClk_Min,AttClk_Max);
-									if (DEBUG) printf("attackclk is: %d\n", attackclk);
+									//if (DEBUG) printf("attackclk is: %d\n", attackclk);
 								}
 							}
 							else --attackclk;
@@ -647,6 +674,7 @@ namespace invaders
 			npc rightmost = NULL;
 			npc swarm[NUMINVADERS];
 			int curstep = INITIALSTEP;
+			int invclk = 0;
 			void run()
 			{
 				
@@ -656,7 +684,7 @@ namespace invaders
 				this->DrawYOffset = -32678; //Can't be seen
 				
 				int lx, ly;
-				int invclk = 0;
+				
 				
 				spawn(swarm);
 				
@@ -726,6 +754,27 @@ namespace invaders
 					}
 					
 					
+					{
+						
+						const int YDEPTH = 12;
+						//get bunker Ys
+						if ( lowest->isValid() )
+						{
+							if ( (lowest->Y+YDEPTH) >= shields::one::minY )
+							{
+								int impact = (lowest->Y) - shields::one::minY - 2; //Abs(118-(this->Y))+DESTROY_Y_OFFSET; //the depth of the impact
+											
+								//Erase a vertical block on every bunker the sie of this alien.
+								for ( int q = 0; q < 4; ++q )
+								{
+									invaders::shields::bnkr[q]->Rectangle(1, 0, impact, 48, impact+7, 0, -1, 0,0,0,true,128);
+								}
+								
+							}
+						}
+					}
+					
+					
 					unless(numInvaders())
 					{
 						while(Screen->NumNPCs() > 1 ) Waitframe(); //1 is always present
@@ -791,6 +840,7 @@ namespace invaders
 				starttile tiles[4] = { stA, stB, stC, stD };
 				for ( int q = 0; q < NUMINVADERS; ++q )
 				{
+					//printf("spawning invader nuber: %d\n", q);
 					if ( (q) && (!(q%12)) ) //start of a row
 					{
 						++id;
@@ -805,7 +855,15 @@ namespace invaders
 					swarm[q]->HitYOffset = -8; //So that they 'land' at the visible 8th pixel.
 					x += 16; //Increment column.
 					grid[q] = swarm[q]; //Store its pointer into the grid. 
+					//if (DEBUG) printf("swarm[%d] x: %d\n", q, swarm[q]->X);
+					//if (DEBUG) printf("swarm[%d] y: %d\n", q, swarm[q]->Y);
 				}
+				for ( int q = 0; q < 48; ++q )
+				{
+					//if (DEBUG) printf("swarm[%d] x: %d\n", q, swarm[q]->X);
+					//if (DEBUG) printf("swarm[%d] y: %d\n", q, swarm[q]->Y);
+				}
+				
 			}
 			
 			void animate(npc swarm)
@@ -878,7 +936,7 @@ namespace invaders
 				unless ( clk%60 )
 				{
 					Audio->PlaySound(STEPSFX);
-					if (DEBUG) printf("stepclk is: %d\n", stepclk);
+					//if (DEBUG) printf("stepclk is: %d\n", stepclk);
 				}
 				
 				unless ( clk%(Max(stepclk<<0,1)) )
@@ -978,7 +1036,7 @@ namespace invaders
 				{
 					for ( int f = 0; canfire[f]->isValid(); ++f )
 					{
-						printf("canfire[f] UID is: %d\n", canfire[f]->UID);
+						//printf("canfire[f] UID is: %d\n", canfire[f]->UID);
 					}
 				}
 				
@@ -1036,7 +1094,7 @@ namespace invaders
 		{
 			int clk, step, cool, x, y;
 			const int SPRITE = 63;
-			const int STEP = 3; //pixels per frame
+			int STEP = 5 - ((difficulty/2)<<0); //pixels per frame
 			const int TYPE = LW_SCRIPT1;
 			const int XOFS = 0; 
 			const int YOFS = -16;
@@ -1044,7 +1102,7 @@ namespace invaders
 			const int HEIGHT = 12;
 			const int WIDTH = 4;
 			const int HITXOFS = 6;
-			const int HITYOFS = 2;
+			const int HITYOFS = 0;
 			
 			const int SHOT_ERODE_RADIUS = 6;
 			
@@ -1052,6 +1110,10 @@ namespace invaders
 			{
 				void run()
 				{
+					this->HitWidth = WIDTH;
+					this->HitHeight = HEIGHT;
+					this->HitXOffset = HITXOFS;
+					this->HitYOffset = HITYOFS;
 					while(1)
 					{
 						//for every pixel of movement, check collisions.
@@ -1374,6 +1436,26 @@ namespace invaders
 			b->DrawString(0, x, data[DATA_CURRY] + spc, font, font_color, -1, format, text, OP_OPAQUE);
 			data[DATA_CURRY] += spc + fontheight;
 		}
+		void addScreenLine(char32 text, int font, int format, int font_color, int y)
+		{
+			int x;
+			int spc = data[DATA_HEADER_SPACING];
+			switch(format)
+			{
+				case TF_NORMAL:
+					x = data[DATA_SIDE_BUFFER];
+					break;
+				case TF_RIGHT:
+					x = 256 - data[DATA_SIDE_BUFFER];
+					break;
+				case TF_CENTERED:
+				default: //In case you pass a bad format?
+					x = 256/2;
+			}
+			int fontheight = Text->FontHeight(font);
+			Screen->DrawString(0, x, y, font, font_color, -1, format, text, OP_OPAQUE);
+			data[DATA_CURRY] += spc + fontheight;
+		}
 		//end
 		//start Screen drawing functions
 		void drawCredits(int y)
@@ -1411,26 +1493,78 @@ namespace invaders
 		//end
 	} //end
 
-	const int DELAY_SECS = 4;
+	const int DELAY_SECS = 4; //delay before starting game
 	global script intro //start
 	{
 		void run()
 		{
 			Audio->PlaySound(SFX_INTRO);
 			crawl::init();
-			crawl::addHeader("It is the year 5780...", FONT_SCIFI);
+			crawl::addHeader("It is the year 5780...", FONT_SCIFI, TF_CENTERED, aliens::COLOR(aliens::CSET(6),14));
 			crawl::addLine("...the spring time in the month of Nisan", FONT_SINQL);
 			crawl::addHeader(" ");
-			crawl::addLine("The PAGANS are INVADING!!", FONT_SINQL);
+			crawl::addLine("The PAGANS are INVADING!!", FONT_PET, TF_CENTERED, aliens::COLOR(aliens::CSET(7),17));
 			crawl::addHeader(" ");
-			crawl::addLine("You must RESCURE HUMANITY from their", FONT_SINQL);
-			crawl::addLine("IDOLATRY, and their misguided beliefs!", FONT_SINQL);
+			crawl::addLine("You must RESCUE HUMANITY from their", FONT_PET);
+			crawl::addLine("IDOLATRY, and their misguided beliefs!", FONT_PET);
 			crawl::blackDelay(30);
 			crawl::rollCredits(.5);
 			crawl::blackDelay(30);
 			crawl::destroy();
 			Waitframes(DELAY_SECS*60);
 			Audio->EndSound(SFX_INTRO);
+			int selection = 0;
+			int selected = 0;
+			until(selected)
+			{
+				//Draw the difficulty menu.
+				//Screen->DrawString(7, 0, 120, , , -1,  TF_CENTERED, "NORMAL", 128);
+				crawl::addScreenLine("SELECT SKILL", FONT_GAIA, TF_CENTERED, 1, 40);
+				crawl::addScreenLine("NORMAL", FONT_SCIFI, TF_CENTERED, (selection == 0 ) ? aliens::COLOR(aliens::CSET(7),17) : aliens::COLOR(aliens::CSET(6),14), 60);
+				crawl::addScreenLine("EXPERT", FONT_SCIFI, TF_CENTERED, (selection == 1 ) ? aliens::COLOR(aliens::CSET(7),17) : aliens::COLOR(aliens::CSET(6),14), 70);
+				crawl::addScreenLine("MASSOCHIST", FONT_SCIFI, TF_CENTERED, (selection == 2 ) ? aliens::COLOR(aliens::CSET(7),17) : aliens::COLOR(aliens::CSET(6),14), 80);
+				
+				if ( Player->PressUp )
+				{
+					switch(selection)
+					{
+						case 0: selection = 2; break;
+						case 1: selection = 0; break;
+						case 2: selection = 1; break;
+					}
+					Audio->PlaySound(3);
+				}
+				if ( Player->PressDown )
+				{
+					switch(selection)
+					{
+						case 0: selection = 1; break;
+						case 1: selection = 2; break;
+						case 2: selection = 0; break;
+					}
+					Audio->PlaySound(3);
+				}
+				
+				if ( Player->PressStart || Player->PressA || Player->PressB )
+				{
+					switch(selection)
+					{
+						case 0: Audio->PlaySound(2); break;
+						case 1: Audio->PlaySound(8); break;
+						case 2: Audio->PlaySound(5); break;
+					}
+					difficulty = selection+1;
+					selected = 1;
+				}
+				/*(int layer, 
+			int x, int y, 
+			int font, int color, int background_color, int format, 
+			"string", 
+			int opacity );*/
+				
+				Waitframe();
+				
+			}
 		}
 	} //end
 	
