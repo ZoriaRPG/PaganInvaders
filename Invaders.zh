@@ -55,6 +55,7 @@
 * 	- Erase bunkers as invaders touch them. Next stage reduces aliens step clock based on difficulty. 
 * 	- Tightened hitbox around player weapons; and modified their speed, which is further affected by difficulty. 
 * 	- UFO is slightly slower on NORMAL difficulty. Adjusted the area of UFO extra life, based on difficulty. 
+* 0.6.1 - Fixed extra 's' in MasSochist. 
 */
 
 /*TODO
@@ -1522,7 +1523,7 @@ namespace invaders
 				crawl::addScreenLine("SELECT SKILL", FONT_GAIA, TF_CENTERED, 1, 40);
 				crawl::addScreenLine("NORMAL", FONT_SCIFI, TF_CENTERED, (selection == 0 ) ? aliens::COLOR(aliens::CSET(7),17) : aliens::COLOR(aliens::CSET(6),14), 60);
 				crawl::addScreenLine("EXPERT", FONT_SCIFI, TF_CENTERED, (selection == 1 ) ? aliens::COLOR(aliens::CSET(7),17) : aliens::COLOR(aliens::CSET(6),14), 70);
-				crawl::addScreenLine("MASSOCHIST", FONT_SCIFI, TF_CENTERED, (selection == 2 ) ? aliens::COLOR(aliens::CSET(7),17) : aliens::COLOR(aliens::CSET(6),14), 80);
+				crawl::addScreenLine("MASOCHIST", FONT_SCIFI, TF_CENTERED, (selection == 2 ) ? aliens::COLOR(aliens::CSET(7),17) : aliens::COLOR(aliens::CSET(6),14), 80);
 				
 				if ( Player->PressUp )
 				{
